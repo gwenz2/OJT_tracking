@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   Design tokens (Tailwind v4 @theme)
+   Keep this small and consistent. Dark mode is supported via the `dark`
+   variant on the root element.
+---------------------------------------------------------------------------- */
+@theme {
+  --color-bg: #ffffff;
+  --color-bg-muted: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-foreground: #ffffff;
+
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+
+  --color-focus-ring: #6366f1;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* ----------------------------------------------------------------------------
+   Mobile shell metrics (trainee experience)
+   --tabbar-h    : bottom tab bar content height
+   --actionbar-h : sticky bottom action bar height (journal editor)
+   --safe-bottom : device safe-area inset (notch / home indicator)
+---------------------------------------------------------------------------- */
+:root {
+  --tabbar-h: 4rem;
+  --actionbar-h: 4.5rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Clearance at the end of trainee pages so content never hides behind the
+   fixed tab bar. */
+@utility pb-tabbar {
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 1rem);
+}
+
+/* Extra clearance for page content that sits under a fixed action bar
+   (stacked on top of pb-tabbar from the shell). */
+@utility pb-actionbar {
+  padding-bottom: calc(var(--actionbar-h) + 0.5rem);
+}
+
+/* Vertical offset that places a fixed element directly above the tab bar. */
+@utility bottom-tabbar {
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+
+/* Safe-area padding for the tab bar itself and full-width sheets. */
+@utility pb-safe {
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Dark mode tokens override */
+.dark {
+  --color-bg: #0b1220;
+  --color-bg-muted: #111827;
+  --color-surface: #0f172a;
+  --color-surface-hover: #1e293b;
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-text-subtle: #64748b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus ring helper used across primitives */
+.focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-muted) 25%,
+    var(--color-surface-hover) 50%,
+    var(--color-bg-muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Bottom-sheet entrance (modals render as sheets on mobile). */
+@keyframes sheet-in {
+  from {
+    transform: translateY(16%);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.sheet-panel {
+  animation: sheet-in 180ms ease-out;
+}
+
+/* Honor reduced-motion: no slide/shimmer animation. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .skeleton {
+    animation: none;
+  }
+}

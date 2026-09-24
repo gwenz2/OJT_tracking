@@ -1,0 +1,53 @@
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Editors ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---------- Env ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---------- Backend (Go) ----------
+backend/bin/
+backend/tmp/
+backend/*.log
+backend/coverage.out
+backend/coverage.html
+*.prof
+
+# ---------- Frontend (Node) ----------
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/coverage/
+frontend/*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/eslint-report.json
+
+# ---------- Logs ----------
+logs/
+*.log
+docs/all_md_files
+docs/spec-driven-go-react-postgres
+docs/spec-driven-go-react-postgres.zip
+# ---------- Docker ----------
+docker-compose.override.yml
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+.devin/
+.specify/
+docs/
+specs/

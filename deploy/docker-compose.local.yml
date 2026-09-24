@@ -1,0 +1,103 @@
+# Local all-in-one deployment for Docker Desktop — everything containerized,
+# plain HTTP on http://localhost (no TLS: browsers won't accept Secure cookies
+# or trust Caddy's internal CA on localhost anyway).
+#
+#   docker compose -f deploy/docker-compose.local.yml up -d --build
+#   docker compose -f deploy/docker-compose.local.yml run --rm api --migrate-up
+#   docker compose -f deploy/docker-compose.local.yml run --rm api --seed-admin
+#   docker compose -f deploy/docker-compose.local.yml run --rm --entrypoint /seed api
+#
+# Then open http://localhost — admin@ojt.local / Admin123!, trainee1@ojt.local / Trainee123!
+name: ojt-app
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ojt_app_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ojt_management
+    # Internal only — not published to the host.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ojt_management"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: bitnamilegacy/minio:latest
+    container_name: ojt_app_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_DEFAULT_BUCKETS: ojt-evidence
+    command: server /bitnami/minio/data
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || curl -f http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ../backend
+    container_name: ojt_app_api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      APP_ENV: development          # local stack: allows HTTP cookies + disabled DB SSL
+      APP_PORT: "8080"
+      LOG_FORMAT: console
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ojt_management
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable           # internal compose network
+      S3_ENDPOINT: minio:9000
+      S3_USE_SSL: "false"
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: ojt-evidence
+      # Browser-facing presign host — Caddy proxies /ojt-evidence/* to MinIO.
+      S3_PUBLIC_ENDPOINT: localhost
+      S3_PUBLIC_SSL: "false"
+      SESSION_COOKIE_SECURE: "false"
+      ALLOWED_ORIGINS: "http://localhost"
+      ADMIN_EMAIL: admin@ojt.local
+      ADMIN_PASSWORD: Admin123!
+      ADMIN_NAME: Admin
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/ojt_management?sslmode=disable
+    healthcheck:
+      test: ["CMD", "/api", "--health-check"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  web:
+    build: ../frontend
+    container_name: ojt_app_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # http:// prefix = plain HTTP on :80 — deliberate for local.
+      SITE_ADDRESS: "http://localhost"
+      API_UPSTREAM: api:8080
+      S3_UPSTREAM: minio:9000
+      S3_BUCKET: ojt-evidence
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
+  miniodata:

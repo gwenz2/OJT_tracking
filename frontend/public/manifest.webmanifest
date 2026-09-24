@@ -1,0 +1,12 @@
+{
+  "name": "OJT Attendance & Journal",
+  "short_name": "OJT",
+  "description": "On-the-job training attendance and daily journal management",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/icons.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

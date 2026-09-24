@@ -1,0 +1,102 @@
+# Production reference stack. Rendered by env vars — no secrets in this file.
+# Copy to the target host, provide a .env next to it, then:
+#   docker compose -f deploy/docker-compose.prod.yml up -d
+#
+#   Required .env keys: DB_PASSWORD, S3_ACCESS_KEY, S3_SECRET_KEY,
+#   SITE_ADDRESS, ALLOWED_ORIGINS, ADMIN_* (first bootstrap only).
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ojt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-ojt_management}
+    # No host port — reachable only inside the compose network.
+    volumes:
+      - ojt_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-ojt_management}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: bitnamilegacy/minio:latest
+    container_name: ojt_minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+      MINIO_DEFAULT_BUCKETS: ${S3_BUCKET:-ojt-evidence}
+    # Private bucket only — no host ports.
+    command: server /bitnami/minio/data
+    volumes:
+      - ojt_miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || curl -f http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ../backend
+    container_name: ojt_api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    environment:
+      APP_ENV: production
+      APP_PORT: "8080"
+      LOG_FORMAT: json
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-ojt_management}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSLMODE: ${DB_SSLMODE:-require}
+      S3_ENDPOINT: minio:9000
+      S3_USE_SSL: "false"
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-ojt-evidence}
+      # Presigned evidence URLs are signed for the public hostname; Caddy
+      # proxies /{bucket}/* back to MinIO with the Host header intact.
+      S3_PUBLIC_ENDPOINT: ${SITE_ADDRESS}
+      S3_PUBLIC_SSL: "true"
+      SESSION_COOKIE_SECURE: "true"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
+    healthcheck:
+      test: ["CMD", "/api", "--health-check"]
+      interval: 15s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  web:
+    build: ../frontend
+    container_name: ojt_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+      API_UPSTREAM: api:8080
+      S3_UPSTREAM: minio:9000
+      S3_BUCKET: ${S3_BUCKET:-ojt-evidence}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Caddy needs persistent storage for its TLS certificates.
+      - ojt_caddydata:/data
+
+volumes:
+  ojt_pgdata:
+  ojt_miniodata:
+  ojt_caddydata:

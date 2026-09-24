@@ -1,0 +1,39 @@
+# Same-origin edge: serves the PWA bundle, terminates TLS, proxies the API.
+# SITE_ADDRESS — public hostname (e.g. ojt.example.edu). Caddy obtains and
+#   renews TLS automatically for a real domain; use a hosts entry / internal
+#   CA for staging.
+# API_UPSTREAM — where the Go API listens (compose service name or IP:port).
+{$SITE_ADDRESS:localhost}
+
+encode zstd gzip
+
+# API + health probes go to the Go service.
+@api path /api/* /health/*
+handle @api {
+	reverse_proxy {$API_UPSTREAM:api:8080}
+}
+
+# Presigned evidence reads: API generates URLs as
+# {scheme}://{site}/{bucket}/{key}?X-Amz-Signature=... — this route proxies
+# the bucket prefix to private MinIO. Caddy passes the client Host through
+# unchanged, which keeps the presigned signature valid. No signature = 403.
+@evidence path /{$S3_BUCKET:ojt-evidence}/*
+handle @evidence {
+	reverse_proxy {$S3_UPSTREAM:minio:9000}
+}
+
+# Everything else is the SPA: real files first, fallback to index.html.
+handle {
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}
+
+header {
+	X-Content-Type-Options nosniff
+	X-Frame-Options DENY
+	Referrer-Policy strict-origin-when-cross-origin
+	# Camera + photo previews use blob:/data: URLs; API calls are same-origin.
+	Content-Security-Policy "default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+	-Server
+}
