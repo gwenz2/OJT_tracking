@@ -37,6 +37,7 @@ interface Detail {
   id: string
   date: string
   status: string
+  trainee_name: string
   site_name: string
   original_time_in_at: string
   original_time_out_at?: string
@@ -87,6 +88,7 @@ export function AttendanceDetailPage() {
 
       <Card>
         <CardContent className="space-y-2 text-sm">
+          {staffView && <Row label="Trainee" value={data.trainee_name} />}
           <Row label="Site" value={data.site_name} />
           <Row label="Time in" value={formatDateTime(data.effective_time_in_at)} />
           <Row label="Time out" value={data.effective_time_out_at ? formatDateTime(data.effective_time_out_at) : '—'} />

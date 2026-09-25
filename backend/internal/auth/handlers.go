@@ -41,6 +41,11 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+type changePasswordRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
 // Login: POST /api/v1/auth/login — public, rate-limited per IP.
 func (h *Handler) Login(c fiber.Ctx) error {
 	var req loginRequest
@@ -109,6 +114,21 @@ func (h *Handler) CSRFToken(c fiber.Ctx) error {
 	return httpx.OK(c, fiber.Map{"csrf_token": token})
 }
 
+// ChangePassword: POST /api/v1/auth/change-password — authenticated users
+// change their own password after confirming the current password.
+func (h *Handler) ChangePassword(c fiber.Ctx) error {
+	var req changePasswordRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return httpx.Fail(c, httpx.ValidationMsg("Malformed request body."))
+	}
+	u := ActorOf(c)
+	if err := h.svc.ChangePassword(c.Context(), u, req.CurrentPassword, req.NewPassword); err != nil {
+		return httpx.Fail(c, err)
+	}
+	audit.Record(c.Context(), h.pool, &u.ID, "auth.password_changed", "user", &u.ID, httpx.RequestID(c), nil)
+	return httpx.OK(c, fiber.Map{"updated": true})
+}
+
 func (h *Handler) setSessionCookie(c fiber.Ctx, token string, expires time.Time) {
 	c.Cookie(&fiber.Cookie{
 		Name:     h.cfg.CookieName,
@@ -143,6 +163,7 @@ func RegisterRoutes(api fiber.Router, h *Handler, sm *SessionManager, cfg config
 	auth := api.Group("/auth")
 	auth.Post("/login", loginLimiter.Middleware(), h.Login)
 	auth.Post("/logout", RequireAuth(sm), CSRFProtect(cfg.AllowedOrigins, sm), h.Logout)
+	auth.Post("/change-password", RequireAuth(sm), CSRFProtect(cfg.AllowedOrigins, sm), h.ChangePassword)
 	auth.Get("/me", RequireAuth(sm), h.Me)
 	auth.Get("/csrf", RequireAuth(sm), h.CSRFToken)
 }

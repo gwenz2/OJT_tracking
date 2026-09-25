@@ -34,6 +34,7 @@ export function TraineesPage() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState<Trainee | 'new' | null>(null)
+  const [passwordFor, setPasswordFor] = useState<Trainee | null>(null)
   const [importing, setImporting] = useState(false)
   const [tempPassword, setTempPassword] = useState<{ name: string; pw: string } | null>(null)
   const toast = useToast()
@@ -114,7 +115,12 @@ export function TraineesPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(t)}>Edit</Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setPasswordFor(t)}>
+                          Set password
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(t)}>Edit</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -155,6 +161,17 @@ export function TraineesPage() {
             <Button onClick={() => setTempPassword(null)}>Done</Button>
           </div>
         </Modal>
+      )}
+
+      {passwordFor && (
+        <TraineePasswordModal
+          trainee={passwordFor}
+          onClose={() => setPasswordFor(null)}
+          onSaved={() => {
+            setPasswordFor(null)
+            toast.success('Trainee password updated')
+          }}
+        />
       )}
 
       {importing && (
@@ -277,6 +294,64 @@ function TraineeModal({
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={save.isPending}>{trainee ? 'Save' : 'Create account'}</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+function TraineePasswordModal({
+  trainee,
+  onClose,
+  onSaved,
+}: {
+  trainee: Trainee
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const save = useMutation({
+    mutationFn: () => api.post(`/staff/trainees/${trainee.id}/password`, { new_password: password }),
+    onSuccess: onSaved,
+    onError: (e) => {
+      if (e instanceof ApiError) {
+        setError(e.fields.new_password ?? e.message)
+      } else {
+        setError('Password update failed')
+      }
+    },
+  })
+
+  return (
+    <Modal open onClose={onClose} title="Set trainee password">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          setError('')
+          save.mutate()
+        }}
+        className="space-y-3"
+      >
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Assign a new password for <strong>{trainee.display_name}</strong>. Active trainee sessions will be signed out.
+        </p>
+        <div>
+          <Label htmlFor="trainee-new-password">New password</Label>
+          <Input
+            id="trainee-new-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            invalid={!!error}
+            autoComplete="new-password"
+          />
+          <FieldError>{error}</FieldError>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={save.isPending} disabled={password.length < 8}>Save password</Button>
         </div>
       </form>
     </Modal>

@@ -10,7 +10,8 @@ import type { Coordinator, Trainee } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input, Label } from '@/components/ui/input'
+import { Input, Label, FieldError } from '@/components/ui/input'
+import { Modal } from '@/components/ui/modal'
 import { Pagination } from '@/components/ui/pagination'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
@@ -22,6 +23,8 @@ const coordApi = {
     api.post<Coordinator & { temporary_password?: string }>('/admin/coordinators', body),
   patch: (id: string, body: { display_name?: string; account_status?: string }) =>
     api.patch<Coordinator>(`/admin/coordinators/${id}`, body),
+  setPassword: (id: string, newPassword: string) =>
+    api.post(`/admin/coordinators/${id}/password`, { new_password: newPassword }),
   setScope: (id: string, traineeIds: string[]) =>
     api.put(`/admin/coordinators/${id}/trainee-scope`, { trainee_ids: traineeIds }),
 }
@@ -87,6 +90,7 @@ export function CoordinatorsPage() {
   const [name, setName] = useState('')
   const [tempPw, setTempPw] = useState<string | null>(null)
   const [scopeFor, setScopeFor] = useState<string | null>(null)
+  const [passwordFor, setPasswordFor] = useState<Coordinator | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: qk.adminCoordinators({ page }),
@@ -173,6 +177,9 @@ export function CoordinatorsPage() {
                   onClick={() => toggleStatus.mutate(c)}>
                   {c.account_status === 'active' ? 'Deactivate' : 'Activate'}
                 </Button>
+                <Button variant="ghost" size="sm" onClick={() => setPasswordFor(c)}>
+                  Set password
+                </Button>
               </CardContent>
               {scopeFor === c.id && <ScopePanel coord={c} onDone={() => setScopeFor(null)} />}
             </Card>
@@ -181,6 +188,75 @@ export function CoordinatorsPage() {
       )}
 
       {data && <Pagination meta={data.meta} onPage={setPage} />}
+
+      {passwordFor && (
+        <CoordinatorPasswordModal
+          coordinator={passwordFor}
+          onClose={() => setPasswordFor(null)}
+          onSaved={() => {
+            setPasswordFor(null)
+            toast.success('Coordinator password updated')
+          }}
+        />
+      )}
     </div>
+  )
+}
+
+function CoordinatorPasswordModal({
+  coordinator,
+  onClose,
+  onSaved,
+}: {
+  coordinator: Coordinator
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const save = useMutation({
+    mutationFn: () => coordApi.setPassword(coordinator.id, password),
+    onSuccess: onSaved,
+    onError: (e) => {
+      if (e instanceof ApiError) {
+        setError(e.fields.new_password ?? e.message)
+      } else {
+        setError('Password update failed')
+      }
+    },
+  })
+
+  return (
+    <Modal open onClose={onClose} title="Set coordinator password">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          setError('')
+          save.mutate()
+        }}
+        className="space-y-3"
+      >
+        <p className="text-sm text-[var(--color-text-muted)]">
+          Assign a new password for <strong>{coordinator.display_name}</strong>. Active coordinator sessions will be signed out.
+        </p>
+        <div>
+          <Label htmlFor="coordinator-new-password">New password</Label>
+          <Input
+            id="coordinator-new-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            invalid={!!error}
+            autoComplete="new-password"
+          />
+          <FieldError>{error}</FieldError>
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button type="submit" loading={save.isPending} disabled={password.length < 8}>Save password</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

@@ -81,3 +81,23 @@ func (h *Handler) SetScope(c fiber.Ctx) error {
 		httpx.RequestID(c), map[string]any{"trainee_count": len(body.TraineeIDs)})
 	return httpx.OK(c, fiber.Map{"updated": true})
 }
+
+func (h *Handler) SetPassword(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return httpx.Fail(c, httpx.ErrNotFound)
+	}
+	var body struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return httpx.Fail(c, httpx.ValidationMsg("Malformed request body."))
+	}
+	if err := SetCoordinatorPassword(c.Context(), h.pool, id, body.NewPassword); err != nil {
+		return httpx.Fail(c, err)
+	}
+	actor := auth.ActorOf(c)
+	audit.Record(c.Context(), h.pool, &actor.ID, "coordinator.password_assigned", "user", &id,
+		httpx.RequestID(c), nil)
+	return httpx.OK(c, fiber.Map{"updated": true})
+}

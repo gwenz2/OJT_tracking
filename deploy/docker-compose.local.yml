@@ -19,7 +19,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: ojt_management
-    # Internal only — not published to the host.
+    # Published for local database tools such as DBeaver.
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:

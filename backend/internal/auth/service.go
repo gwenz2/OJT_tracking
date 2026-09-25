@@ -91,6 +91,47 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 	return s.sm.Revoke(ctx, token)
 }
 
+// ChangePassword verifies the current password before replacing the caller's
+// password hash. The active session remains valid.
+func (s *Service) ChangePassword(ctx context.Context, u *User, currentPassword, newPassword string) error {
+	if u == nil {
+		return httpx.ErrUnauthorized
+	}
+	fields := map[string]string{}
+	if currentPassword == "" {
+		fields["current_password"] = "Current password is required."
+	}
+	if len(newPassword) < 8 {
+		fields["new_password"] = "New password must be at least 8 characters."
+	}
+	if len(fields) > 0 {
+		return httpx.Validation(fields)
+	}
+
+	var hash string
+	err := s.pool.QueryRow(ctx, `SELECT password_hash FROM users WHERE id = $1`, u.ID).Scan(&hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return httpx.ErrUnauthorized
+		}
+		return httpx.Internal(err)
+	}
+	match, _, err := VerifyPassword(currentPassword, hash)
+	if err != nil || !match {
+		return httpx.Validation(map[string]string{"current_password": "Current password is incorrect."})
+	}
+	newHash, err := HashPassword(newPassword)
+	if err != nil {
+		return httpx.Internal(err)
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+		u.ID, newHash); err != nil {
+		return httpx.Internal(err)
+	}
+	return nil
+}
+
 // dummyHash is a valid-format Argon2id hash used to equalize login timing when
 // the email does not exist. It never matches a real password.
 const dummyHash = "$argon2id$v=19$m=65536,t=2,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"

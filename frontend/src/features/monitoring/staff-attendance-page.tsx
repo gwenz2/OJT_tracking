@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/select'
 import { Pagination } from '@/components/ui/pagination'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { formatDate, formatDateTime, formatMinutes } from '@/lib/utils'
+import { Camera } from 'lucide-react'
 
 const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'> = {
   open: 'default', valid: 'success', flagged: 'warning', corrected: 'default',
@@ -92,6 +93,7 @@ export function StaffAttendancePage() {
                 <th className="px-3 py-2 font-medium">Credited</th>
                 <th className="px-3 py-2 font-medium">Status</th>
                 <th className="px-3 py-2 font-medium">Journal</th>
+                <th className="px-3 py-2 font-medium">Evidence</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
@@ -119,6 +121,15 @@ export function StaffAttendancePage() {
                     ))}
                   </td>
                   <td className="px-3 py-2">{r.journal_status ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    <Link
+                      to={`/staff/attendance/${r.id}`}
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[var(--radius-md)] px-2 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 focus-ring"
+                    >
+                      <Camera size={16} aria-hidden="true" />
+                      View evidence
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

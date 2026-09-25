@@ -111,6 +111,40 @@ func TestMeAndLogoutWithCSRF(t *testing.T) {
 	}
 }
 
+func TestChangeOwnPassword(t *testing.T) {
+	a, pool := testutil.App(t)
+	session, csrf := testutil.LoginAs(t, a, pool, "me@x.edu", "pass-12345", "coordinator", "Me")
+
+	status, body, _ := testutil.Do(t, a, "POST", "/api/v1/auth/change-password", map[string]any{
+		"current_password": "wrong-pass",
+		"new_password":     "new-pass-12345",
+	}, map[string]string{"X-CSRF-Token": csrf}, []*http.Cookie{session})
+	if status != 400 {
+		t.Fatalf("wrong current password must fail, got %d %v", status, body)
+	}
+
+	status, body, _ = testutil.Do(t, a, "POST", "/api/v1/auth/change-password", map[string]any{
+		"current_password": "pass-12345",
+		"new_password":     "new-pass-12345",
+	}, map[string]string{"X-CSRF-Token": csrf}, []*http.Cookie{session})
+	if status != 200 {
+		t.Fatalf("change password: %d %v", status, body)
+	}
+
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "me@x.edu", "password": "pass-12345",
+	}, nil, nil)
+	if status != 401 {
+		t.Fatalf("old password must fail after change, got %d", status)
+	}
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "me@x.edu", "password": "new-pass-12345",
+	}, nil, nil)
+	if status != 200 {
+		t.Fatalf("new password must login, got %d", status)
+	}
+}
+
 func TestCrossOriginUnsafeRejected(t *testing.T) {
 	a, pool := testutil.App(t)
 	session, csrf := testutil.LoginAs(t, a, pool, "c@x.edu", "pass-12345", "trainee", "C")

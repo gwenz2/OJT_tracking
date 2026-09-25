@@ -301,6 +301,36 @@ func Update(ctx context.Context, pool *db.Pool, id uuid.UUID, in PatchInput) (*T
 	return Get(ctx, pool, id)
 }
 
+// SetPassword replaces a trainee account password and signs out any active
+// trainee sessions. Scope checks are performed by the HTTP handler first.
+func SetPassword(ctx context.Context, pool *db.Pool, id uuid.UUID, newPassword string) error {
+	if len(newPassword) < 8 {
+		return httpx.Validation(map[string]string{"new_password": "Password must be at least 8 characters."})
+	}
+	t, err := Get(ctx, pool, id)
+	if err != nil {
+		return err
+	}
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return httpx.Internal(err)
+	}
+	if err := pool.InTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx,
+			`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+			t.UserID, hash); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx,
+			`UPDATE user_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+			t.UserID)
+		return err
+	}); err != nil {
+		return httpx.Internal(err)
+	}
+	return nil
+}
+
 func nullIfEmpty(s string) any {
 	if s = strings.TrimSpace(s); s != "" {
 		return s

@@ -189,3 +189,38 @@ func SetTraineeScope(ctx context.Context, pool *db.Pool, coordinatorID uuid.UUID
 		return nil
 	})
 }
+
+// SetCoordinatorPassword lets an admin assign a new password to a coordinator
+// account and signs out that coordinator's active sessions.
+func SetCoordinatorPassword(ctx context.Context, pool *db.Pool, coordinatorID uuid.UUID, newPassword string) error {
+	if len(newPassword) < 8 {
+		return httpx.Validation(map[string]string{"new_password": "Password must be at least 8 characters."})
+	}
+	var exists bool
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'coordinator')`,
+		coordinatorID).Scan(&exists); err != nil {
+		return httpx.Internal(err)
+	}
+	if !exists {
+		return httpx.ErrNotFound
+	}
+	hash, err := auth.HashPassword(newPassword)
+	if err != nil {
+		return httpx.Internal(err)
+	}
+	if err := pool.InTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx,
+			`UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+			coordinatorID, hash); err != nil {
+			return err
+		}
+		_, err := tx.Exec(ctx,
+			`UPDATE user_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+			coordinatorID)
+		return err
+	}); err != nil {
+		return httpx.Internal(err)
+	}
+	return nil
+}

@@ -170,12 +170,14 @@ func Build(d Deps) *fiber.App {
 	staff.Post("/trainees/import/commit", traineesH.ImportCommit)
 	staff.Get("/trainees/:id", traineesH.GetOne)
 	staff.Patch("/trainees/:id", traineesH.Update)
+	staff.Post("/trainees/:id/password", traineesH.SetPassword)
 
 	usersH := users.NewHandler(d.Pool)
 	admin.Get("/coordinators", usersH.List)
 	admin.Post("/coordinators", usersH.Create)
 	admin.Patch("/coordinators/:id", usersH.Patch)
 	admin.Put("/coordinators/:id/trainee-scope", usersH.SetScope)
+	admin.Post("/coordinators/:id/password", usersH.SetPassword)
 
 	settingsH := settings.NewHandler(d.Pool)
 	admin.Get("/settings", settingsH.Get)

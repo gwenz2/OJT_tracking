@@ -101,6 +101,31 @@ func (h *Handler) Update(c fiber.Ctx) error {
 	return httpx.OK(c, t)
 }
 
+// SetPassword: POST /staff/trainees/{id}/password — staff assigns a new
+// password to an in-scope trainee account.
+func (h *Handler) SetPassword(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return httpx.Fail(c, httpx.ErrNotFound)
+	}
+	if err := h.checkScope(c, id); err != nil {
+		return httpx.Fail(c, err)
+	}
+	var body struct {
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return httpx.Fail(c, httpx.ValidationMsg("Malformed request body."))
+	}
+	if err := SetPassword(c.Context(), h.pool, id, body.NewPassword); err != nil {
+		return httpx.Fail(c, err)
+	}
+	actor := auth.ActorOf(c)
+	audit.Record(c.Context(), h.pool, &actor.ID, "trainee.password_assigned", "trainee_profile", &id,
+		httpx.RequestID(c), nil)
+	return httpx.OK(c, fiber.Map{"updated": true})
+}
+
 // ImportValidate: POST /staff/trainees/import/validate (multipart file "file").
 func (h *Handler) ImportValidate(c fiber.Ctx) error {
 	fh, err := c.FormFile("file")

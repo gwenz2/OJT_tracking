@@ -142,6 +142,76 @@ func TestTraineeCreateAndScope(t *testing.T) {
 	}
 }
 
+func TestStaffCanAssignTraineePassword(t *testing.T) {
+	a, pool := testutil.App(t)
+	adminSess, adminCSRF := testutil.LoginAs(t, a, pool, "admin@x.edu", "pass-12345", "admin", "Admin")
+
+	status, body := authed(t, a, adminSess, adminCSRF, "POST", "/api/v1/staff/trainees", map[string]any{
+		"email": "resetme@x.edu", "display_name": "Reset Me", "student_number": "S-RESET",
+	})
+	if status != 201 {
+		t.Fatalf("create trainee: %d %v", status, body)
+	}
+	data := body["data"].(map[string]any)
+	oldPassword := data["temporary_password"].(string)
+	traineeID := data["trainee"].(map[string]any)["id"].(string)
+
+	status, body = authed(t, a, adminSess, adminCSRF, "POST", "/api/v1/staff/trainees/"+traineeID+"/password", map[string]any{
+		"new_password": "assigned-pass-12345",
+	})
+	if status != 200 {
+		t.Fatalf("assign password: %d %v", status, body)
+	}
+
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "resetme@x.edu", "password": oldPassword,
+	}, nil, nil)
+	if status != 401 {
+		t.Fatalf("old password must fail after reset, got %d", status)
+	}
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "resetme@x.edu", "password": "assigned-pass-12345",
+	}, nil, nil)
+	if status != 200 {
+		t.Fatalf("new password must login, got %d", status)
+	}
+}
+
+func TestAdminCanAssignCoordinatorPassword(t *testing.T) {
+	a, pool := testutil.App(t)
+	adminSess, adminCSRF := testutil.LoginAs(t, a, pool, "admin@x.edu", "pass-12345", "admin", "Admin")
+
+	status, body := authed(t, a, adminSess, adminCSRF, "POST", "/api/v1/admin/coordinators", map[string]any{
+		"email": "coord-reset@x.edu", "display_name": "Coord Reset",
+	})
+	if status != 201 {
+		t.Fatalf("create coordinator: %d %v", status, body)
+	}
+	data := body["data"].(map[string]any)
+	oldPassword := data["temporary_password"].(string)
+	coordID := data["coordinator"].(map[string]any)["id"].(string)
+
+	status, body = authed(t, a, adminSess, adminCSRF, "POST", "/api/v1/admin/coordinators/"+coordID+"/password", map[string]any{
+		"new_password": "coord-assigned-12345",
+	})
+	if status != 200 {
+		t.Fatalf("assign coordinator password: %d %v", status, body)
+	}
+
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "coord-reset@x.edu", "password": oldPassword,
+	}, nil, nil)
+	if status != 401 {
+		t.Fatalf("old coordinator password must fail after assignment, got %d", status)
+	}
+	status, _, _ = testutil.Do(t, a, "POST", "/api/v1/auth/login", map[string]any{
+		"email": "coord-reset@x.edu", "password": "coord-assigned-12345",
+	}, nil, nil)
+	if status != 200 {
+		t.Fatalf("new coordinator password must login, got %d", status)
+	}
+}
+
 func TestCSVImport(t *testing.T) {
 	a, pool := testutil.App(t)
 	sess, csrf := testutil.LoginAs(t, a, pool, "admin@x.edu", "pass-12345", "admin", "Admin")
