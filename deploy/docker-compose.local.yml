@@ -68,10 +68,12 @@ services:
       S3_SECRET_KEY: minioadmin
       S3_BUCKET: ojt-evidence
       # Browser-facing presign host — Caddy proxies /ojt-evidence/* to MinIO.
-      S3_PUBLIC_ENDPOINT: localhost
-      S3_PUBLIC_SSL: "false"
+      # Use the ngrok hostname so presigned evidence URLs are reachable from
+      # both local-network clients and remote clients using the tunnel.
+      S3_PUBLIC_ENDPOINT: chemurgic-repulsively-rogelio.ngrok-free.dev
+      S3_PUBLIC_SSL: "true"
       SESSION_COOKIE_SECURE: "false"
-      ALLOWED_ORIGINS: "http://localhost"
+      ALLOWED_ORIGINS: "http://localhost,http://192.168.1.14,https://chemurgic-repulsively-rogelio.ngrok-free.dev"
       ADMIN_EMAIL: admin@ojt.local
       ADMIN_PASSWORD: Admin123!
       ADMIN_NAME: Admin
@@ -91,7 +93,7 @@ services:
       - api
     environment:
       # http:// prefix = plain HTTP on :80 — deliberate for local.
-      SITE_ADDRESS: "http://localhost"
+      SITE_ADDRESS: "http://localhost, http://192.168.1.14, https://chemurgic-repulsively-rogelio.ngrok-free.dev"
       API_UPSTREAM: api:8080
       S3_UPSTREAM: minio:9000
       S3_BUCKET: ojt-evidence
