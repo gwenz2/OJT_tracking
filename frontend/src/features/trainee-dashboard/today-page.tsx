@@ -11,7 +11,7 @@ import { Modal } from '@/components/ui/modal'
 import { LoadingState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { AttendanceCaptureFlow } from '@/features/attendance/AttendanceCaptureFlow'
 import { formatMinutes, formatDate, formatTime } from '@/lib/utils'
-import { ChevronRight, FileEdit, LogIn, LogOut, BookOpen } from 'lucide-react'
+import { ChevronRight, FileEdit, LogIn, LogOut, BookOpen, MapPin, CheckCircle2 } from 'lucide-react'
 
 /**
  * Trainee home: assignment progress + the single next action the attendance
@@ -39,18 +39,21 @@ export function TodayPage() {
   const { assignment, today } = data
 
   return (
-    <div className="space-y-4 p-4">
-      <div>
-        <h1 className="text-lg font-semibold">Today</h1>
+    <div className="space-y-4 p-4 pb-6">
+      <div className="flex items-start justify-between">
+        <div>
+        <h1 className="text-2xl font-extrabold">Today</h1>
         <p className="text-sm text-[var(--color-text-muted)]">{formatDate(new Date())}</p>
+        </div>
+        {today.time_in_at && !today.time_out_at && <Badge variant="success" className="rounded-[var(--radius-md)] px-3 py-1.5">On duty</Badge>}
       </div>
 
       {assignment ? (
-        <Card>
-          <CardContent className="space-y-2">
+        <Card className="shadow-none">
+          <CardContent className="space-y-3 p-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="min-w-0 break-words text-sm font-medium">{assignment.site.name}</span>
-              <Badge className="shrink-0">{assignment.progress_percent}%</Badge>
+              <span className="flex min-w-0 items-center gap-2 break-words text-sm font-semibold"><MapPin size={16} className="text-[var(--color-primary)]" />{assignment.site.name}</span>
+              <span className="shrink-0 text-sm font-bold text-[var(--color-warning)]">{assignment.progress_percent}%</span>
             </div>
             <div
               className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-hover)]"
@@ -127,33 +130,33 @@ function AttendanceCard({
 }) {
   const navigate = useNavigate()
   return (
-    <Card>
-      <CardContent className="space-y-3">
+    <Card className="border-[var(--color-status-border)] bg-[var(--color-status-surface)] text-[var(--color-status-text)] shadow-none">
+      <CardContent className="space-y-4 p-5">
         {today.attendance_status && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-[var(--color-text-muted)]">Attendance</span>
+              <span className="text-sm font-medium text-[var(--color-status-muted)]">Current status</span>
               <Badge
                 variant={today.attendance_status === 'valid' ? 'success' : 'default'}
-                className="capitalize"
+                className="bg-white/10 capitalize text-[var(--color-status-text)]"
               >
                 {today.attendance_status}
               </Badge>
             </div>
             {(today.time_in_at || today.time_out_at) && (
-              <div className="flex gap-6 text-sm">
+              <div className="grid grid-cols-2 gap-4 border-t border-current/20 pt-4 text-sm">
                 <span>
-                  <span className="text-[var(--color-text-muted)]">In </span>
-                  <span className="font-medium tabular-nums">{formatTime(today.time_in_at)}</span>
+                  <span className="mb-1 flex items-center gap-1 text-xs opacity-70"><LogIn size={14} /> Time in</span>
+                  <span className="font-bold tabular-nums">{formatTime(today.time_in_at)}</span>
                 </span>
                 <span>
-                  <span className="text-[var(--color-text-muted)]">Out </span>
-                  <span className="font-medium tabular-nums">{formatTime(today.time_out_at)}</span>
+                  <span className="mb-1 flex items-center gap-1 text-xs opacity-70"><LogOut size={14} /> Time out</span>
+                  <span className="font-bold tabular-nums">{formatTime(today.time_out_at)}</span>
                 </span>
               </div>
             )}
             {today.journal_status && (
-              <p className="text-xs capitalize text-[var(--color-text-muted)]">
+              <p className="text-xs capitalize text-[var(--color-status-muted)]">
                 Journal: {today.journal_status.replace('_', ' ')}
               </p>
             )}
@@ -184,7 +187,7 @@ function NextAction({
       )
     case 'time_out':
       return (
-        <Button fullWidth size="lg" onClick={() => onCapture('time_out')}>
+        <Button fullWidth size="lg" className="bg-[#f4c430] text-[#043d29] hover:bg-[#e6b91f]" onClick={() => onCapture('time_out')}>
           <LogOut size={18} /> Time Out
         </Button>
       )
@@ -208,10 +211,11 @@ function NextAction({
     case 'view_summary':
       return (
         <div className="space-y-2">
-          <p className="text-center text-sm text-[var(--color-text-muted)]">All done for today.</p>
+          <p className="flex items-center justify-center gap-2 text-center text-sm"><CheckCircle2 size={17} className="text-[var(--color-success)]" />All done for today.</p>
           {today.attendance_id && (
             <Button
               variant="outline"
+              className="border-white/60 text-white hover:bg-white/10 hover:text-white"
               fullWidth
               onClick={() => navigate(`/attendance/${today.attendance_id}`)}
             >

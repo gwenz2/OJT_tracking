@@ -45,14 +45,12 @@ export function TraineeLayout() {
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-[var(--color-bg)]">
-      <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4">
-        <span className="shrink-0 text-sm font-semibold">OJT Attendance</span>
-        <span
-          className="min-w-0 truncate text-xs text-[var(--color-text-muted)]"
-          title={user?.display_name}
-        >
-          {user?.display_name}
-        </span>
+      <header className="flex h-20 shrink-0 items-center gap-3 bg-[var(--color-brand-shell)] px-4 text-white">
+        <img src="/brand/ccso-logo.png" alt="CCSO" className="h-11 w-11 rounded-full object-cover" />
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-[var(--color-brand-accent)]">SKSU OJT</div>
+          <div className="mt-1 truncate text-base font-bold" title={user?.display_name}>Hello, {user?.display_name}</div>
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto pb-tabbar">
@@ -78,9 +76,9 @@ export function TraineeLayout() {
               >
                 <span
                   className={cn(
-                    'flex flex-col items-center gap-0.5 rounded-[var(--radius-md)] px-4 py-1.5 text-[11px] font-medium',
+                  'flex flex-col items-center gap-1 px-4 py-1.5 text-[11px] font-medium',
                     active
-                      ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
+                      ? 'text-[var(--color-primary)]'
                       : 'text-[var(--color-text-muted)]',
                   )}
                 >

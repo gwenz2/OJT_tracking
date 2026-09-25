@@ -17,6 +17,8 @@ import {
   X,
   Moon,
   Sun,
+  Search,
+  Plus,
 } from 'lucide-react'
 import { useSession } from '@/features/auth/session'
 import { useUIStore } from '@/stores/ui-store'
@@ -57,28 +59,32 @@ export function StaffLayout() {
 
   return (
     <div className="flex min-h-screen bg-[var(--color-bg)]">
-      <aside className="hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] md:flex md:flex-col">
+      <aside className="hidden w-[252px] shrink-0 bg-[var(--color-brand-shell)] text-white md:flex md:flex-col">
         <SidebarContent items={items} onNavigate={() => setMobileOpen(false)} onLogout={handleLogout} />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} aria-hidden="true" />
-          <aside className="absolute left-0 top-0 h-full w-64 border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+          <aside className="absolute left-0 top-0 h-full w-[252px] bg-[var(--color-brand-shell)] text-white">
             <SidebarContent items={items} onNavigate={() => setMobileOpen(false)} onLogout={handleLogout} />
           </aside>
         </div>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:px-6">
           <div className="flex items-center gap-3">
             <button className="md:hidden" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <span className="text-sm font-semibold">OJT Management</span>
+            <span className="text-sm font-semibold">Coordinator workspace</span>
           </div>
           <div className="flex items-center gap-2">
+            <label className="relative hidden lg:block">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]" />
+              <input aria-label="Search" placeholder="Search trainees, sites…" className="h-10 w-64 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-muted)] pl-9 pr-3 text-sm focus-ring" />
+            </label>
             <button
               onClick={toggleTheme}
               className="rounded-[var(--radius-md)] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] focus-ring"
@@ -98,9 +104,12 @@ export function StaffLayout() {
                 </span>
               </Link>
             )}
+            <Link to="/staff/trainees" className="hidden h-10 items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] sm:flex">
+              <Plus size={17} /> Add trainee
+            </Link>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Outlet />
         </main>
       </div>
@@ -120,8 +129,11 @@ function SidebarContent({
   const { user } = useSession()
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center px-4 text-sm font-semibold">OJT Management</div>
-      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2" aria-label="Staff navigation">
+      <div className="flex h-[104px] items-center gap-3 border-b border-white/15 px-5">
+        <img src="/brand/ccso-logo.png" alt="CCSO" className="h-12 w-12 rounded-full object-cover" />
+        <div><div className="text-sm font-extrabold">SKSU OJT</div><div className="mt-1 text-[11px] text-[#add1bd]">CCSO Coordinator</div></div>
+      </div>
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Staff navigation">
         {items.map((item) => (
           <NavLink
             key={item.to}
@@ -130,10 +142,10 @@ function SidebarContent({
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-colors',
+                'flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                  : 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
+                  ? 'bg-[var(--color-brand-shell-muted)] text-white'
+                  : 'text-[var(--color-brand-shell-text)] hover:bg-white/10 hover:text-white',
               )
             }
           >
@@ -142,11 +154,11 @@ function SidebarContent({
           </NavLink>
         ))}
       </nav>
-      <div className="border-t border-[var(--color-border)] p-2">
-        <div className="px-3 py-1 text-xs capitalize text-[var(--color-text-subtle)]">{user?.role}</div>
+      <div className="border-t border-white/15 p-3">
+        <div className="px-3 py-1 text-xs capitalize text-[#add1bd]">{user?.role}</div>
         <button
           onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] focus-ring"
+          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium text-[#d1e8db] hover:bg-white/10 hover:text-white focus-ring"
         >
           <LogOut size={18} />
           Logout
