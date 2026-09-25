@@ -69,8 +69,6 @@ export function ReportsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Reports</h1>
-
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <Label htmlFor="r-name">Report</Label>

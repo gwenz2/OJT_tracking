@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -17,8 +17,6 @@ import {
   X,
   Moon,
   Sun,
-  Search,
-  Plus,
 } from 'lucide-react'
 import { useSession } from '@/features/auth/session'
 import { useUIStore } from '@/stores/ui-store'
@@ -48,9 +46,11 @@ export function StaffLayout() {
   const theme = useUIStore((s) => s.theme)
   const toggleTheme = useUIStore((s) => s.toggleTheme)
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const items = user?.role === 'admin' ? [...coordinatorNav, ...adminNav] : coordinatorNav
+  const section = getSectionTitle(location.pathname, user?.role)
 
   async function handleLogout() {
     await logout()
@@ -78,13 +78,9 @@ export function StaffLayout() {
             <button className="md:hidden" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <span className="text-sm font-semibold">Coordinator workspace</span>
+            <h1 className="text-lg font-semibold">{section}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <label className="relative hidden lg:block">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-subtle)]" />
-              <input aria-label="Search" placeholder="Search trainees, sites…" className="h-10 w-64 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-muted)] pl-9 pr-3 text-sm focus-ring" />
-            </label>
             <button
               onClick={toggleTheme}
               className="rounded-[var(--radius-md)] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] focus-ring"
@@ -104,9 +100,6 @@ export function StaffLayout() {
                 </span>
               </Link>
             )}
-            <Link to="/staff/trainees" className="hidden h-10 items-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] sm:flex">
-              <Plus size={17} /> Add trainee
-            </Link>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
@@ -115,6 +108,29 @@ export function StaffLayout() {
       </div>
     </div>
   )
+}
+
+function getSectionTitle(pathname: string, role?: string) {
+  if (pathname === '/staff' || pathname === '/staff/') {
+    return role === 'admin' ? 'Admin dashboard' : 'Coordinator dashboard'
+  }
+
+  const section = pathname.split('/')[2]
+  const titles: Record<string, string> = {
+    attendance: 'Attendance',
+    journals: 'Journals',
+    corrections: 'Corrections',
+    trainees: 'Trainees',
+    sites: 'OJT sites',
+    assignments: 'Assignments',
+    reports: 'Reports',
+    notifications: 'Notifications',
+    coordinators: 'Coordinators',
+    settings: 'Settings',
+    profile: 'Profile',
+  }
+
+  return titles[section] ?? 'OJT management'
 }
 
 function SidebarContent({
@@ -131,7 +147,12 @@ function SidebarContent({
     <div className="flex h-full flex-col">
       <div className="flex h-[104px] items-center gap-3 border-b border-white/15 px-5">
         <img src="/brand/ccso-logo.png" alt="CCSO" className="h-12 w-12 rounded-full object-cover" />
-        <div><div className="text-sm font-extrabold">SKSU OJT</div><div className="mt-1 text-[11px] text-[#add1bd]">CCSO Coordinator</div></div>
+        <div>
+          <div className="text-sm font-extrabold">SKSU OJT</div>
+          <div className="mt-1 text-[11px] text-[#add1bd]">
+            {user?.role === 'admin' ? 'CCSO Administration' : 'CCSO Coordinator'}
+          </div>
+        </div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="Staff navigation">
         {items.map((item) => (
@@ -153,16 +174,19 @@ function SidebarContent({
             {item.label}
           </NavLink>
         ))}
+        <div className="mt-2 border-t border-white/15 pt-2">
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex min-h-11 w-full items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium text-[var(--color-brand-shell-text)] transition-colors hover:bg-white/10 hover:text-white focus-ring"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
       </nav>
       <div className="border-t border-white/15 p-3">
         <div className="px-3 py-1 text-xs capitalize text-[#add1bd]">{user?.role}</div>
-        <button
-          onClick={onLogout}
-          className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium text-[#d1e8db] hover:bg-white/10 hover:text-white focus-ring"
-        >
-          <LogOut size={18} />
-          Logout
-        </button>
       </div>
     </div>
   )

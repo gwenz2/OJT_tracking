@@ -42,8 +42,6 @@ export function StaffAttendancePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Attendance monitoring</h1>
-
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <Label htmlFor="f-from">From</Label>

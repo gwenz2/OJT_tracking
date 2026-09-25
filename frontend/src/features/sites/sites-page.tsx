@@ -38,8 +38,7 @@ export function SitesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">OJT Sites</h1>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setEditing('new')}>Add site</Button>
       </div>
 

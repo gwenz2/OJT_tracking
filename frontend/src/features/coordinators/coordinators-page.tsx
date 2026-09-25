@@ -119,8 +119,6 @@ export function CoordinatorsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Coordinators</h1>
-
       <Card>
         <CardHeader><CardTitle className="text-base">Add coordinator</CardTitle></CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">

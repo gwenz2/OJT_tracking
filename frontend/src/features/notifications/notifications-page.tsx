@@ -56,8 +56,8 @@ export function NotificationsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Notifications</h1>
+      <div className={cn('flex flex-wrap items-center gap-2', user?.role === 'trainee' ? 'justify-between' : 'justify-end')}>
+        {user?.role === 'trainee' && <h1 className="text-xl font-semibold">Notifications</h1>}
         <div className="flex items-center gap-2">
           <button
             type="button"

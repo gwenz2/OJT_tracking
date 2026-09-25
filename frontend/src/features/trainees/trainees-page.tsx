@@ -51,28 +51,24 @@ export function TraineesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Trainees</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setImporting(true)}>Import CSV</Button>
-          <Button onClick={() => setEditing('new')}>Add trainee</Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           placeholder="Search name, email, student no."
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1) }}
-          className="max-w-xs"
+          className="sm:max-w-xs"
           aria-label="Search trainees"
         />
-        <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-36" aria-label="Filter by status">
+        <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-full sm:w-44" aria-label="Filter by status">
           <option value="">All statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
           <option value="locked">Locked</option>
         </Select>
+        <div className="flex gap-2 sm:ml-auto">
+          <Button className="flex-1 sm:flex-none" variant="outline" onClick={() => setImporting(true)}>Import CSV</Button>
+          <Button className="flex-1 sm:flex-none" onClick={() => setEditing('new')}>Add trainee</Button>
+        </div>
       </div>
 
       {isLoading && <LoadingState />}

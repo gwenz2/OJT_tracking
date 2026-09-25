@@ -49,17 +49,15 @@ export function AssignmentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">Assignments</h1>
-        <Button onClick={() => setEditing('new')}>New assignment</Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-full sm:w-52" aria-label="Filter by status">
+          <option value="">All statuses</option>
+          {['planned', 'active', 'completed', 'suspended', 'cancelled'].map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </Select>
+        <Button className="sm:ml-auto" onClick={() => setEditing('new')}>New assignment</Button>
       </div>
-
-      <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-40" aria-label="Filter by status">
-        <option value="">All statuses</option>
-        {['planned', 'active', 'completed', 'suspended', 'cancelled'].map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </Select>
 
       {isLoading && <LoadingState />}
       {error instanceof ApiError && error.status === 403 && <AccessDenied />}

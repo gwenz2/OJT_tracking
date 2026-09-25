@@ -47,8 +47,6 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
-      <h1 className="text-xl font-semibold">Institution settings</h1>
-
       {f.retention_days == null && (
         <Card className="border-[var(--color-warning)]/50">
           <CardContent className="pt-4 text-sm text-[var(--color-warning)]">
