@@ -66,7 +66,7 @@ export function ProfilePage() {
   const updateProfile = useMutation({
     mutationFn: () => api.patch<{ user: User }>('/auth/me', {
       display_name: displayName,
-      email,
+      email: staff ? email : user?.email,
     }),
     onSuccess: (res) => {
       updateUser(res.user)
@@ -121,18 +121,27 @@ export function ProfilePage() {
                 />
                 <FieldError>{errors.display_name}</FieldError>
               </div>
-              <div>
-                <Label htmlFor="profile-email">Email</Label>
-                <Input
-                  id="profile-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  invalid={!!errors.email}
-                  className="text-base"
-                />
-                <FieldError>{errors.email}</FieldError>
-              </div>
+              {staff ? (
+                <div>
+                  <Label htmlFor="profile-email">Email</Label>
+                  <Input
+                    id="profile-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    invalid={!!errors.email}
+                    className="text-base"
+                  />
+                  <FieldError>{errors.email}</FieldError>
+                </div>
+              ) : (
+                <div>
+                  <p className="mb-1.5 text-sm font-medium text-[var(--color-text)]">Email</p>
+                  <p className="break-all rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-muted)] px-3 py-2 text-base text-[var(--color-text-muted)]">
+                    {user.email}
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button type="submit" loading={updateProfile.isPending} className="text-base">
                   Save profile

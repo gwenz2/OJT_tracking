@@ -92,6 +92,9 @@ func (s *Service) UpdateProfile(ctx context.Context, u *User, email, displayName
 	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	displayName = strings.TrimSpace(displayName)
+	if u.Role == "trainee" {
+		email = u.Email
+	}
 	fields := map[string]string{}
 	if email == "" || !strings.Contains(email, "@") {
 		fields["email"] = "A valid email is required."
