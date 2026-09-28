@@ -1,6 +1,5 @@
 import type { PageMeta } from '@/api/types'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function visiblePages(current: number, total: number) {
@@ -13,13 +12,9 @@ function visiblePages(current: number, total: number) {
 export function Pagination({
   meta,
   onPage,
-  pageSize,
-  onPageSize,
 }: {
   meta: PageMeta | undefined
   onPage: (page: number) => void
-  pageSize?: number
-  onPageSize?: (pageSize: number) => void
 }) {
   if (!meta || meta.total_pages <= 1) return null
 
@@ -27,23 +22,9 @@ export function Pagination({
 
   return (
     <nav aria-label="Pagination" className="flex flex-col gap-3 pt-2 text-sm text-[var(--color-text-muted)] sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-2">
-        <p aria-live="polite">
-          Page {meta.page} of {meta.total_pages} / {meta.total} total
-        </p>
-        {pageSize && onPageSize && (
-          <Select
-            value={String(pageSize)}
-            onChange={(event) => onPageSize(Number(event.target.value))}
-            aria-label="Rows per page"
-            className="h-9 w-20 text-xs"
-          >
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </Select>
-        )}
-      </div>
+      <p aria-live="polite">
+        Page {meta.page} of {meta.total_pages} / {meta.total} total
+      </p>
       <div className="flex items-center gap-1">
         <Button
           variant="outline"

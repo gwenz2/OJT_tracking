@@ -29,7 +29,7 @@ export function StaffJournalQueuePage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 10
   const [filtersOpen, setFiltersOpen] = useState(false)
   const debouncedSearch = useDebounce(search.trim(), 300)
 
@@ -118,8 +118,6 @@ export function StaffJournalQueuePage() {
         <Pagination
           meta={data.meta}
           onPage={setPage}
-          pageSize={pageSize}
-          onPageSize={(next) => { setPageSize(next); setPage(1) }}
         />
       )}
     </div>

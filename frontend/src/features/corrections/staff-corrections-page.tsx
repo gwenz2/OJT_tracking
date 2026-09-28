@@ -81,7 +81,7 @@ export function StaffCorrectionsPage() {
   const [status, setStatus] = useState('pending')
   const [type, setType] = useState('')
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 10
   const [openId, setOpenId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const debouncedSearch = useDebounce(search.trim(), 300)
@@ -184,8 +184,6 @@ export function StaffCorrectionsPage() {
         <Pagination
           meta={data.meta}
           onPage={setPage}
-          pageSize={pageSize}
-          onPageSize={(next) => { setPageSize(next); setPage(1) }}
         />
       )}
     </div>

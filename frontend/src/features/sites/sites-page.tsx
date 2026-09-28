@@ -31,7 +31,7 @@ type SiteForm = z.output<typeof siteSchema>
 
 export function SitesPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 10
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Site | 'new' | null>(null)
   const toast = useToast()
@@ -136,8 +136,6 @@ export function SitesPage() {
         <Pagination
           meta={data.meta}
           onPage={setPage}
-          pageSize={pageSize}
-          onPageSize={(next) => { setPageSize(next); setPage(1) }}
         />
       )}
 

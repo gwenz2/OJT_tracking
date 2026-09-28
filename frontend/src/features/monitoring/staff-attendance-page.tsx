@@ -24,7 +24,7 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 export function StaffAttendancePage() {
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 10
   const [search, setSearch] = useState(params.get('q') ?? '')
   const [from, setFrom] = useState(params.get('from') ?? '')
   const [to, setTo] = useState(params.get('to') ?? '')
@@ -202,8 +202,6 @@ export function StaffAttendancePage() {
         <Pagination
           meta={data.meta}
           onPage={setPage}
-          pageSize={pageSize}
-          onPageSize={(next) => { setPageSize(next); setPage(1) }}
         />
       )}
     </div>

@@ -38,7 +38,7 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 
 export function AssignmentsPage() {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const pageSize = 10
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [site, setSite] = useState('')
@@ -153,8 +153,6 @@ export function AssignmentsPage() {
         <Pagination
           meta={data.meta}
           onPage={setPage}
-          pageSize={pageSize}
-          onPageSize={(next) => { setPageSize(next); setPage(1) }}
         />
       )}
 
