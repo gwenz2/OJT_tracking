@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { api, ApiError } from '@/api/client'
 import { qk } from '@/api/queryKeys'
@@ -16,6 +16,7 @@ import { LoadingState, ErrorState, EmptyState, AccessDenied } from '@/components
 import { useToast } from '@/components/feedback/toast'
 import { formatMinutes, formatDate } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
+import { Check, ChevronDown } from 'lucide-react'
 
 const WEEKDAYS = [
   { v: 1, label: 'Mon' },
@@ -188,6 +189,8 @@ function AssignmentModal({
     assignment?.break_rule_type ?? 'none',
   )
   const [status, setStatus] = useState<Assignment['status']>(assignment?.status ?? 'active')
+  const [traineeId, setTraineeId] = useState('')
+  const [siteId, setSiteId] = useState(assignment?.site_id ?? '')
 
   const trainees = useQuery({
     queryKey: qk.staffTrainees({ all: true }),
@@ -237,10 +240,10 @@ function AssignmentModal({
     const end = String(fd.get('end_date') ?? '')
     if (end) body.end_date = end
     if (!assignment) {
-      body.trainee_id = fd.get('trainee_id')
-      body.site_id = fd.get('site_id')
+      body.trainee_id = traineeId
+      body.site_id = siteId
     } else {
-      body.site_id = fd.get('site_id')
+      body.site_id = siteId
     }
     save.mutate(body)
   }
@@ -252,24 +255,58 @@ function AssignmentModal({
       <form onSubmit={onSubmit} className="space-y-3">
         {!assignment && (
           <div>
+            <Combobox
+              id="a-trainee-combobox"
+              label="Trainee"
+              value={traineeId}
+              onChange={setTraineeId}
+              invalid={!!fe('trainee_id')}
+              placeholder="Search trainee"
+              emptyLabel={trainees.isLoading ? 'Loading trainees...' : 'No trainee found'}
+              options={(trainees.data?.items ?? []).map((t) => ({
+                value: t.id,
+                label: t.display_name,
+                description: t.student_number,
+              }))}
+            />
+            <input type="hidden" name="trainee_id" value={traineeId} />
+            <div className="hidden">
             <Label htmlFor="a-trainee">Trainee</Label>
-            <Select id="a-trainee" name="trainee_id" required invalid={!!fe('trainee_id')}>
+            <Select id="a-trainee" tabIndex={-1}>
               <option value="">Select trainee…</option>
               {trainees.data?.items.map((t) => (
                 <option key={t.id} value={t.id}>{t.display_name} ({t.student_number})</option>
-              ))}
+            ))}
             </Select>
+            </div>
             <FieldError>{fe('trainee_id')}</FieldError>
           </div>
         )}
         <div>
+          <Combobox
+            id="a-site-combobox"
+            label="Site"
+            value={siteId}
+            onChange={setSiteId}
+            invalid={!!fe('site_id')}
+            placeholder="Search site"
+            emptyLabel={sites.isLoading ? 'Loading sites...' : 'No site found'}
+            options={(sites.data?.items ?? []).map((s) => ({
+              value: s.id,
+              label: s.name,
+              description: s.address,
+            }))}
+          />
+          <input type="hidden" name="site_id" value={siteId} />
+          <div className="hidden">
           <Label htmlFor="a-site">Site</Label>
-          <Select id="a-site" name="site_id" required defaultValue={assignment?.site_id} invalid={!!fe('site_id')}>
+          <Select id="a-site" tabIndex={-1} defaultValue={assignment?.site_id}>
             <option value="">Select site…</option>
             {sites.data?.items.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </Select>
+          </div>
           <FieldError>{fe('site_id')}</FieldError>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -381,5 +418,114 @@ function AssignmentModal({
         </div>
       </form>
     </Modal>
+  )
+}
+
+function Combobox({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  emptyLabel,
+  invalid,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: { value: string; label: string; description?: string }[]
+  placeholder: string
+  emptyLabel: string
+  invalid?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const selected = options.find((option) => option.value === value)
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return options
+    return options.filter((option) =>
+      `${option.label} ${option.description ?? ''}`.toLowerCase().includes(needle),
+    )
+  }, [options, query])
+
+  return (
+    <div className="relative">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="relative">
+        <Input
+          id={id}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={`${id}-listbox`}
+          aria-autocomplete="list"
+          value={open ? query : selected?.label ?? ''}
+          onFocus={() => {
+            setOpen(true)
+            setQuery('')
+          }}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setOpen(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false)
+          }}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          invalid={invalid}
+          placeholder={placeholder}
+          autoComplete="off"
+          className="pr-10"
+        />
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setOpen((next) => !next)
+            setQuery('')
+          }}
+          className="focus-ring absolute right-0 top-0 flex size-11 items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          aria-label={`Toggle ${label.toLowerCase()} options`}
+        >
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {open && (
+        <div
+          id={`${id}-listbox`}
+          role="listbox"
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
+        >
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-sm text-[var(--color-text-muted)]">{emptyLabel}</div>
+          )}
+          {filtered.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(option.value)
+                setQuery('')
+                setOpen(false)
+              }}
+              className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]"
+            >
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium">{option.label}</span>
+                {option.description && (
+                  <span className="truncate text-xs text-[var(--color-text-muted)]">{option.description}</span>
+                )}
+              </span>
+              {option.value === value && <Check size={16} className="shrink-0 text-[var(--color-primary)]" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
