@@ -13,6 +13,7 @@ import { Input, Label } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
+import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 
 const REPORTS = [
   { value: 'daily-attendance', label: 'Daily attendance' },
@@ -41,6 +42,7 @@ export function ReportsPage() {
   const [to, setTo] = useState('')
   const [applied, setApplied] = useState({ from: '', to: '' })
   const [exporting, setExporting] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const filters = { ...applied }
   const { data, isLoading, error } = useQuery({
@@ -67,24 +69,41 @@ export function ReportsPage() {
 
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
+  const selectedReport = REPORTS.find((item) => item.value === report)?.label ?? 'Report'
+  const activeDateCount = [applied.from, applied.to].filter(Boolean).length
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
+      <div className="flex items-start gap-2 md:items-end">
+        <FilterDisclosure
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen((open) => !open)}
+          summary={activeDateCount ? `${selectedReport} · Filtered` : selectedReport}
+        >
+        <div className="col-span-2 min-w-0">
           <Label htmlFor="r-name">Report</Label>
-          <Select id="r-name" value={report} onChange={(e) => setReport(e.target.value)} className="w-48">
+          <Select id="r-name" value={report} onChange={(e) => setReport(e.target.value)} className="w-full md:w-48">
             {REPORTS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </Select>
         </div>
-        <div>
+        <div className="min-w-0">
           <Label htmlFor="r-from">From</Label>
           <Input id="r-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
-        <div>
+        <div className="min-w-0">
           <Label htmlFor="r-to">To</Label>
           <Input id="r-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
-        <Button variant="outline" onClick={() => setApplied({ from, to })}>Apply</Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setApplied({ from, to })
+            setFiltersOpen(false)
+          }}
+        >
+          Apply
+        </Button>
+        </FilterDisclosure>
         <Button variant="secondary" loading={exporting} onClick={exportCsv} disabled={!data || data.rows.length === 0}>
           Export CSV
         </Button>
@@ -99,8 +118,8 @@ export function ReportsPage() {
       )}
 
       {data && data.rows.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-[var(--color-border)]">
-          <table className="w-full text-sm">
+        <div className="responsive-table-frame overflow-x-auto rounded-lg border border-[var(--color-border)]">
+          <table className="responsive-table w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-hover)] text-left">
                 {data.columns.map((c) => (
@@ -112,7 +131,7 @@ export function ReportsPage() {
               {data.rows.map((row, i) => (
                 <tr key={i} className="hover:bg-[var(--color-surface-hover)]">
                   {data.columns.map((c) => (
-                    <td key={c.key} className="px-3 py-2 whitespace-nowrap">{cellText(row[c.key])}</td>
+                    <td key={c.key} data-label={c.label} className="px-3 py-2 whitespace-nowrap">{cellText(row[c.key])}</td>
                   ))}
                 </tr>
               ))}

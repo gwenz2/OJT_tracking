@@ -18,6 +18,7 @@ import { LoadingState, ErrorState, EmptyState, AccessDenied } from '@/components
 import { useToast } from '@/components/feedback/toast'
 import { useDebounce } from '@/hooks/use-debounce'
 import { ImportDialog } from './import-dialog'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const traineeSchema = z.object({
   email: z.string().email('Valid email required'),
@@ -37,7 +38,17 @@ export function TraineesPage() {
   const [passwordFor, setPasswordFor] = useState<Trainee | null>(null)
   const [importing, setImporting] = useState(false)
   const [tempPassword, setTempPassword] = useState<{ name: string; pw: string } | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
   const toast = useToast()
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const debouncedQ = useDebounce(q, 300)
   const params = new URLSearchParams({ page: String(page), page_size: '20' })
@@ -80,9 +91,9 @@ export function TraineesPage() {
         <EmptyState title="No trainees found" description="Add trainees individually or import a CSV roster." />
       )}
       {data && data.items.length > 0 && (
-        <Card>
+        <Card className="responsive-table-frame">
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
+            <table className="responsive-table w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)]">
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -94,23 +105,43 @@ export function TraineesPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((t) => (
-                  <tr key={t.id} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{t.display_name}</div>
-                      <div className="text-xs text-[var(--color-text-muted)]">{t.email}</div>
+                {data.items.map((t) => {
+                  const expanded = expandedIds.has(t.id)
+                  return (
+                  <tr
+                    key={t.id}
+                    data-expanded={expanded}
+                    className="mobile-card-collapsible border-b border-[var(--color-border)] last:border-0"
+                  >
+                    <td data-label="Name" data-card-primary className="px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{t.display_name}</div>
+                          <div className="mobile-card-detail-block text-xs text-[var(--color-text-muted)] md:block">{t.email}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(t.id)}
+                          aria-expanded={expanded}
+                          aria-label={`${expanded ? 'Collapse' : 'Expand'} details for ${t.display_name}`}
+                          className="focus-ring inline-flex h-9 shrink-0 items-center gap-1 rounded-[var(--radius-md)] px-2 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] md:hidden"
+                        >
+                          {expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+                          {expanded ? 'Less' : 'More'}
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-4 py-3">{t.student_number}</td>
-                    <td className="px-4 py-3 text-[var(--color-text-muted)]">{t.site_name ?? '—'}</td>
-                    <td className="px-4 py-3">
+                    <td data-label="Student no." className="mobile-card-detail px-4 py-3">{t.student_number}</td>
+                    <td data-label="Site" className="mobile-card-detail px-4 py-3 text-[var(--color-text-muted)]">{t.site_name ?? '—'}</td>
+                    <td data-label="Progress" className="mobile-card-detail px-4 py-3">
                       {t.progress_percent != null ? `${Math.round(t.progress_percent)}%` : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status" className="mobile-card-detail px-4 py-3">
                       <Badge variant={t.account_status === 'active' ? 'success' : 'default'}>
                         {t.account_status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td data-label="Actions" data-card-actions className="mobile-card-detail px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="sm" onClick={() => setPasswordFor(t)}>
                           Set password
@@ -119,7 +150,8 @@ export function TraineesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </CardContent>

@@ -68,9 +68,9 @@ export function AssignmentsPage() {
         <EmptyState title="No assignments" description="Assign a trainee to a site with required hours." />
       )}
       {data && data.items.length > 0 && (
-        <Card>
+        <Card className="responsive-table-frame">
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
+            <table className="responsive-table w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)]">
                   <th className="px-4 py-3 font-medium">Trainee</th>
@@ -84,18 +84,18 @@ export function AssignmentsPage() {
               <tbody>
                 {data.items.map((a) => (
                   <tr key={a.id} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="px-4 py-3 font-medium">{a.trainee_name}</td>
-                    <td className="px-4 py-3">{a.site_name}</td>
-                    <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                    <td data-label="Trainee" data-card-primary className="px-4 py-3 font-medium">{a.trainee_name}</td>
+                    <td data-label="Site" className="px-4 py-3">{a.site_name}</td>
+                    <td data-label="Dates" className="px-4 py-3 text-[var(--color-text-muted)]">
                       {formatDate(a.start_date)} – {a.end_date ? formatDate(a.end_date) : 'ongoing'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Hours" className="px-4 py-3">
                       {formatMinutes(a.completed_minutes)} / {formatMinutes(a.required_minutes)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="Status" className="px-4 py-3">
                       <Badge variant={statusVariant[a.status] ?? 'default'}>{a.status}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td data-label="Actions" data-card-actions className="px-4 py-3 text-right">
                       <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>Edit</Button>
                     </td>
                   </tr>

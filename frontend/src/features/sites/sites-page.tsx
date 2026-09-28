@@ -13,8 +13,11 @@ import { Input, Label, FieldError } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Pagination } from '@/components/ui/pagination'
-import { LoadingState, ErrorState, EmptyState, AccessDenied } from '@/components/feedback/states'
+import { ErrorState, EmptyState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDebounce } from '@/hooks/use-debounce'
+import { Search, X } from 'lucide-react'
 
 const siteSchema = z.object({
   name: z.string().min(1, 'Required'),
@@ -28,65 +31,107 @@ type SiteForm = z.output<typeof siteSchema>
 
 export function SitesPage() {
   const [page, setPage] = useState(1)
+  const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Site | 'new' | null>(null)
   const toast = useToast()
+  const debouncedQ = useDebounce(q, 300)
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: qk.staffSites({ page }),
-    queryFn: () => api.getPaged<Site>(`/staff/sites?page=${page}&page_size=20`),
+  const params = new URLSearchParams({ page: String(page), page_size: '20' })
+  if (debouncedQ) params.set('q', debouncedQ)
+
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: qk.staffSites({ page, q: debouncedQ }),
+    queryFn: () => api.getPaged<Site>(`/staff/sites?${params}`),
+    placeholderData: (previousData) => previousData,
   })
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <Button onClick={() => setEditing('new')}>Add site</Button>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-sm">
+          <Search size={18} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <Input
+            type="search"
+            value={q}
+            onChange={(event) => {
+              setQ(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Search sites or addresses"
+            aria-label="Search sites or addresses"
+            className="pl-10 pr-10"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ('')
+                setPage(1)
+              }}
+              aria-label="Clear search"
+              className="focus-ring absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[var(--radius-md)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <Button className="sm:ml-auto" onClick={() => setEditing('new')}>Add site</Button>
       </div>
 
-      {isLoading && <LoadingState />}
+      {isLoading && <SitesSkeleton />}
       {error instanceof ApiError && error.status === 403 && <AccessDenied />}
       {error && !(error instanceof ApiError && error.status === 403) && (
         <ErrorState description={error.message} onRetry={() => refetch()} />
       )}
-      {data && data.items.length === 0 && (
-        <EmptyState title="No sites yet" description="Add the workplaces where trainees report." />
+      {data && !error && data.items.length === 0 && (
+        <EmptyState
+          title={debouncedQ ? 'No matching sites' : 'No sites yet'}
+          description={debouncedQ ? `No sites match “${debouncedQ}”.` : 'Add the workplaces where trainees report.'}
+          action={debouncedQ ? <Button variant="outline" size="sm" onClick={() => setQ('')}>Clear search</Button> : undefined}
+        />
       )}
-      {data && data.items.length > 0 && (
-        <Card>
-          <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)]">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Address</th>
-                  <th className="px-4 py-3 font-medium">Radius</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((s) => (
-                  <tr key={s.id} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="px-4 py-3 font-medium">{s.name}</td>
-                    <td className="px-4 py-3 text-[var(--color-text-muted)]">{s.address}</td>
-                    <td className="px-4 py-3">{s.allowed_radius_m} m</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={s.is_active ? 'success' : 'default'}>
-                        {s.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(s)}>
-                        Edit
-                      </Button>
-                    </td>
+      {data && !error && data.items.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm text-[var(--color-text-muted)]" aria-live="polite">
+            {isFetching ? 'Updating sites…' : `${data.meta.total} site${data.meta.total === 1 ? '' : 's'} found`}
+          </p>
+          <Card className={`responsive-table-frame transition-opacity ${isFetching ? 'opacity-60' : ''}`} aria-busy={isFetching}>
+            <CardContent className="overflow-x-auto p-0">
+              <table className="responsive-table w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[var(--color-border)] text-left text-[var(--color-text-muted)]">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Address</th>
+                    <th className="px-4 py-3 font-medium">Radius</th>
+                    <th className="px-4 py-3 font-medium">Status</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
+                </thead>
+                <tbody>
+                  {data.items.map((s) => (
+                    <tr key={s.id} className="border-b border-[var(--color-border)] last:border-0">
+                      <td data-label="Name" data-card-primary className="px-4 py-3 font-medium">{s.name}</td>
+                      <td data-label="Address" className="px-4 py-3 text-[var(--color-text-muted)]">{s.address}</td>
+                      <td data-label="Radius" className="px-4 py-3">{s.allowed_radius_m} m</td>
+                      <td data-label="Status" className="px-4 py-3">
+                        <Badge variant={s.is_active ? 'success' : 'default'}>
+                          {s.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td data-label="Actions" data-card-actions className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(s)}>
+                          Edit
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
       )}
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && !error && <Pagination meta={data.meta} onPage={setPage} />}
 
       {editing && (
         <SiteModal
@@ -99,6 +144,33 @@ export function SitesPage() {
           }}
         />
       )}
+    </div>
+  )
+}
+
+function SitesSkeleton() {
+  return (
+    <div aria-label="Loading sites" role="status">
+      <span className="sr-only">Loading sites…</span>
+      <div className="grid gap-3 md:hidden">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <Skeleton className="h-5 w-2/5" />
+            <Skeleton className="mt-4 h-4 w-full" />
+            <Skeleton className="mt-3 h-4 w-3/5" />
+            <Skeleton className="mt-3 h-4 w-1/3" />
+          </div>
+        ))}
+      </div>
+      <Card className="hidden md:block">
+        <CardContent className="space-y-4 p-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <div key={index} className="grid grid-cols-[1fr_2fr_0.6fr_0.6fr_0.4fr] gap-6">
+              {Array.from({ length: 5 }).map((__, column) => <Skeleton key={column} className="h-4" />)}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   )
 }
