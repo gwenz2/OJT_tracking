@@ -189,7 +189,7 @@ function AssignmentModal({
     assignment?.break_rule_type ?? 'none',
   )
   const [status, setStatus] = useState<Assignment['status']>(assignment?.status ?? 'active')
-  const [traineeId, setTraineeId] = useState('')
+  const [traineeIds, setTraineeIds] = useState<string[]>([])
   const [siteId, setSiteId] = useState(assignment?.site_id ?? '')
 
   const trainees = useQuery({
@@ -203,10 +203,12 @@ function AssignmentModal({
   })
 
   const save = useMutation({
-    mutationFn: async (body: Record<string, unknown>) =>
-      assignment
-        ? api.patch<Assignment>(`/staff/assignments/${assignment.id}`, body)
-        : api.post<Assignment>('/staff/assignments', body),
+    mutationFn: async (body: Record<string, unknown>) => {
+      if (assignment) return api.patch<Assignment>(`/staff/assignments/${assignment.id}`, body)
+      const ids = body.trainee_ids as string[]
+      const { trainee_ids: _omit, ...rest } = body
+      return Promise.all(ids.map((id) => api.post<Assignment>('/staff/assignments', { ...rest, trainee_id: id })))
+    },
     onSuccess: () => onSaved(assignment ? 'Assignment updated' : 'Assignment created'),
     onError: (e) => {
       if (e instanceof ApiError) {
@@ -240,10 +242,18 @@ function AssignmentModal({
     const end = String(fd.get('end_date') ?? '')
     if (end) body.end_date = end
     if (!assignment) {
-      body.trainee_id = traineeId
+      if (traineeIds.length === 0) {
+        setFieldErrs({ trainee_id: 'Select at least one trainee.' })
+        return
+      }
+      body.trainee_ids = traineeIds
       body.site_id = siteId
     } else {
       body.site_id = siteId
+    }
+    if (!siteId) {
+      setFieldErrs({ site_id: 'Select a site.' })
+      return
     }
     save.mutate(body)
   }
@@ -255,13 +265,13 @@ function AssignmentModal({
       <form onSubmit={onSubmit} className="space-y-3">
         {!assignment && (
           <div>
-            <Combobox
+            <MultiCombobox
               id="a-trainee-combobox"
               label="Trainee"
-              value={traineeId}
-              onChange={setTraineeId}
+              values={traineeIds}
+              onChange={setTraineeIds}
               invalid={!!fe('trainee_id')}
-              placeholder="Search trainee"
+              placeholder="Search trainees"
               emptyLabel={trainees.isLoading ? 'Loading trainees...' : 'No trainee found'}
               options={(trainees.data?.items ?? []).map((t) => ({
                 value: t.id,
@@ -269,7 +279,6 @@ function AssignmentModal({
                 description: t.student_number,
               }))}
             />
-            <input type="hidden" name="trainee_id" value={traineeId} />
             <div className="hidden">
             <Label htmlFor="a-trainee">Trainee</Label>
             <Select id="a-trainee" tabIndex={-1}>
@@ -418,6 +427,133 @@ function AssignmentModal({
         </div>
       </form>
     </Modal>
+  )
+}
+
+function MultiCombobox({
+  id,
+  label,
+  values,
+  onChange,
+  options,
+  placeholder,
+  emptyLabel,
+  invalid,
+}: {
+  id: string
+  label: string
+  values: string[]
+  onChange: (values: string[]) => void
+  options: { value: string; label: string; description?: string }[]
+  placeholder: string
+  emptyLabel: string
+  invalid?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const selected = options.filter((option) => values.includes(option.value))
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return options
+    return options.filter((option) =>
+      `${option.label} ${option.description ?? ''}`.toLowerCase().includes(needle),
+    )
+  }, [options, query])
+
+  const toggle = (value: string) => {
+    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value])
+  }
+
+  return (
+    <div className="relative">
+      <Label htmlFor={id}>{label}</Label>
+      {selected.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {selected.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => toggle(option.value)}
+              className="focus-ring rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg-muted)] px-2 py-1 text-xs font-medium text-[var(--color-text)] hover:bg-[var(--color-surface-hover)]"
+            >
+              {option.label} ×
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <Input
+          id={id}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={`${id}-listbox`}
+          aria-autocomplete="list"
+          value={query}
+          onFocus={() => setOpen(true)}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            setOpen(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setOpen(false)
+          }}
+          onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+          invalid={invalid}
+          placeholder={selected.length > 0 ? 'Add another trainee' : placeholder}
+          autoComplete="off"
+          className="pr-10"
+        />
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            setOpen((next) => !next)
+            setQuery('')
+          }}
+          className="focus-ring absolute right-0 top-0 flex size-11 items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          aria-label={`Toggle ${label.toLowerCase()} options`}
+        >
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      </div>
+      {open && (
+        <div
+          id={`${id}-listbox`}
+          role="listbox"
+          className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-lg)]"
+        >
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-sm text-[var(--color-text-muted)]">{emptyLabel}</div>
+          )}
+          {filtered.map((option) => {
+            const picked = values.includes(option.value)
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={picked}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  toggle(option.value)
+                  setQuery('')
+                  setOpen(true)
+                }}
+                className="focus-ring flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-[var(--color-surface-hover)]"
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{option.label}</span>
+                  {option.description && (
+                    <span className="truncate text-xs text-[var(--color-text-muted)]">{option.description}</span>
+                  )}
+                </span>
+                {picked && <Check size={16} className="shrink-0 text-[var(--color-primary)]" aria-hidden="true" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 

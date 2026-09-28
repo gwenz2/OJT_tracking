@@ -22,13 +22,20 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const traineeSchema = z.object({
   email: z.string().email('Valid email required'),
-  display_name: z.string().min(1, 'Required'),
+  first_name: z.string().min(1, 'Required'),
+  last_name: z.string().min(1, 'Required'),
   student_number: z.string().min(1, 'Required'),
-  program: z.string().min(1, 'Required'),
-  year_level: z.string().min(1, 'Required'),
+  program: z.enum(['BSIT', 'BSIS', 'BSCS'], { message: 'Select a program' }),
+  year_level: z.enum(['1', '2', '3', '4', '5'], { message: 'Select a year level' }),
   contact_number: z.string().optional(),
 })
 type TraineeForm = z.infer<typeof traineeSchema>
+
+function splitName(name: string) {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length <= 1) return { first_name: parts[0] ?? '', last_name: '' }
+  return { first_name: parts.slice(0, -1).join(' '), last_name: parts.at(-1) ?? '' }
+}
 
 export function TraineesPage() {
   const [page, setPage] = useState(1)
@@ -245,10 +252,10 @@ function TraineeModal({
     defaultValues: trainee
       ? {
           email: trainee.email,
-          display_name: trainee.display_name,
+          ...splitName(trainee.display_name),
           student_number: trainee.student_number,
-          program: trainee.program,
-          year_level: trainee.year_level,
+          program: ['BSIT', 'BSIS', 'BSCS'].includes(trainee.program) ? trainee.program as TraineeForm['program'] : 'BSIT',
+          year_level: ['1', '2', '3', '4', '5'].includes(trainee.year_level) ? trainee.year_level as TraineeForm['year_level'] : '1',
           contact_number: trainee.contact_number,
         }
       : undefined,
@@ -257,10 +264,18 @@ function TraineeModal({
 
   const save = useMutation({
     mutationFn: async (f: TraineeForm) => {
-      if (trainee) {
-        return api.patch<Trainee>(`/staff/trainees/${trainee.id}`, { ...f, account_status: accountStatus })
+      const body = {
+        email: f.email,
+        display_name: `${f.first_name.trim()} ${f.last_name.trim()}`.trim(),
+        student_number: f.student_number,
+        program: f.program,
+        year_level: f.year_level,
+        contact_number: f.contact_number,
       }
-      return api.post<{ trainee: Trainee; temporary_password: string }>('/staff/trainees', f)
+      if (trainee) {
+        return api.patch<Trainee>(`/staff/trainees/${trainee.id}`, { ...body, account_status: accountStatus })
+      }
+      return api.post<{ trainee: Trainee; temporary_password: string }>('/staff/trainees', body)
     },
     onSuccess: (res) => {
       if (trainee) {
@@ -286,9 +301,14 @@ function TraineeModal({
           <FieldError>{errors.email?.message}</FieldError>
         </div>
         <div>
-          <Label htmlFor="t-name">Full name</Label>
-          <Input id="t-name" invalid={!!errors.display_name} {...register('display_name')} />
-          <FieldError>{errors.display_name?.message}</FieldError>
+          <Label htmlFor="t-first">First name</Label>
+          <Input id="t-first" invalid={!!errors.first_name} {...register('first_name')} />
+          <FieldError>{errors.first_name?.message}</FieldError>
+        </div>
+        <div>
+          <Label htmlFor="t-last">Last name</Label>
+          <Input id="t-last" invalid={!!errors.last_name} {...register('last_name')} />
+          <FieldError>{errors.last_name?.message}</FieldError>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -298,13 +318,23 @@ function TraineeModal({
           </div>
           <div>
             <Label htmlFor="t-year">Year level</Label>
-            <Input id="t-year" invalid={!!errors.year_level} {...register('year_level')} placeholder="e.g. 4" />
+            <Select id="t-year" invalid={!!errors.year_level} {...register('year_level')}>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </Select>
             <FieldError>{errors.year_level?.message}</FieldError>
           </div>
         </div>
         <div>
           <Label htmlFor="t-program">Program</Label>
-          <Input id="t-program" invalid={!!errors.program} {...register('program')} placeholder="e.g. BSIT" />
+          <Select id="t-program" invalid={!!errors.program} {...register('program')}>
+            <option value="BSIT">BSIT</option>
+            <option value="BSIS">BSIS</option>
+            <option value="BSCS">BSCS</option>
+          </Select>
           <FieldError>{errors.program?.message}</FieldError>
         </div>
         <div>
