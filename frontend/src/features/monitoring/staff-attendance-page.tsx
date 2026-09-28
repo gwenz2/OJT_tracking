@@ -24,6 +24,7 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 export function StaffAttendancePage() {
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState(params.get('q') ?? '')
   const [from, setFrom] = useState(params.get('from') ?? '')
   const [to, setTo] = useState(params.get('to') ?? '')
@@ -46,7 +47,7 @@ export function StaffAttendancePage() {
     })
   }
 
-  const query = { ...applied, page }
+  const query = { ...applied, page, pageSize }
   const { data, isLoading, error } = useQuery({
     queryKey: qk.staffAttendance(query),
     queryFn: () => monitoringApi.attendance(query),
@@ -61,10 +62,6 @@ export function StaffAttendancePage() {
     setFiltersOpen(false)
   }
 
-  const filteredItems = data?.items.filter((r) => {
-    const haystack = `${r.trainee_name} ${r.student_number} ${r.site_name} ${r.status} ${r.journal_status ?? ''} ${r.flags.join(' ')}`.toLowerCase()
-    return !applied.q.trim() || haystack.includes(applied.q.trim().toLowerCase())
-  }) ?? []
   const activeFilterCount = [applied.q, applied.from, applied.to, applied.status].filter(Boolean).length
 
   return (
@@ -117,11 +114,7 @@ export function StaffAttendancePage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No records" description="No attendance sessions match these filters." />
       )}
-      {data && data.items.length > 0 && filteredItems.length === 0 && (
-        <EmptyState title="No matches" description="Try a different search term or filter." />
-      )}
-
-      {data && filteredItems.length > 0 && (
+      {data && data.items.length > 0 && (
         <div className="responsive-table-frame overflow-x-auto rounded-lg border border-[var(--color-border)]">
           <table className="responsive-table w-full text-sm">
             <thead>
@@ -138,7 +131,7 @@ export function StaffAttendancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {filteredItems.map((r) => {
+              {data.items.map((r) => {
                 const expanded = expandedIds.has(r.id)
                 return (
                 <tr
@@ -205,7 +198,14 @@ export function StaffAttendancePage() {
         </div>
       )}
 
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
     </div>
   )
 }

@@ -20,9 +20,14 @@ export const journalApi = {
   deleteEvidence: (id: string, evidenceId: string) =>
     api.del<{ deleted: boolean }>(`/journals/${id}/evidence/${evidenceId}`),
 
-  queue: (status: string, page: number) =>
-    api.getPaged<JournalQueueItem>(
-      `/staff/journals?page=${page}${status ? `&status=${status}` : ''}`),
+  queue: (params: { q?: string; status?: string; page: number; pageSize?: number }) => {
+    const q = new URLSearchParams()
+    if (params.q) q.set('q', params.q)
+    if (params.status) q.set('status', params.status)
+    q.set('page', String(params.page))
+    if (params.pageSize) q.set('page_size', String(params.pageSize))
+    return api.getPaged<JournalQueueItem>(`/staff/journals?${q}`)
+  },
 
   review: (id: string, decision: 'reviewed' | 'needs_revision', comment?: string) =>
     api.post<Journal>(`/staff/journals/${id}/review`, { decision, comment }),

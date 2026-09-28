@@ -30,14 +30,15 @@ func (h *Handler) Dashboard(c fiber.Ctx) error {
 	return httpx.OK(c, d)
 }
 
-// AttendanceList: GET /staff/attendance?date=&from=&to=&site_id=&trainee_id=&status=
+// AttendanceList: GET /staff/attendance?q=&date=&from=&to=&site_id=&trainee_id=&status=
 func (h *Handler) AttendanceList(c fiber.Ctx) error {
 	scope, err := auth.ScopedTraineeIDs(c.Context(), h.pool, auth.ActorOf(c))
 	if err != nil {
 		return httpx.Fail(c, httpx.Internal(err))
 	}
 	page := httpx.ParsePage(c)
-	f := struct{ From, To, Date, SiteID, TraineeID, Status string }{
+	f := struct{ Q, From, To, Date, SiteID, TraineeID, Status string }{
+		Q: c.Query("q"),
 		From: c.Query("from"), To: c.Query("to"), Date: c.Query("date"),
 		SiteID: c.Query("site_id"), TraineeID: c.Query("trainee_id"),
 		Status: c.Query("status"),

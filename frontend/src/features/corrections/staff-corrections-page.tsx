@@ -18,6 +18,7 @@ import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
 import { formatDate, formatDateTime } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
 
 const typeLabel: Record<string, string> = {
   missed_time_out: 'Forgot to time out',
@@ -80,20 +81,18 @@ export function StaffCorrectionsPage() {
   const [status, setStatus] = useState('pending')
   const [type, setType] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [openId, setOpenId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const debouncedSearch = useDebounce(search.trim(), 300)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: qk.staffCorrections({ status, type, page }),
-    queryFn: () => correctionsApi.staffList({ status, type, page }),
+    queryKey: qk.staffCorrections({ q: debouncedSearch, status, type, page, pageSize }),
+    queryFn: () => correctionsApi.staffList({ q: debouncedSearch, status, type, page, pageSize }),
   })
 
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
-  const filteredItems = data?.items.filter((c) => {
-    const haystack = `${c.trainee_name} ${c.site_name} ${c.reason} ${typeLabel[c.type] ?? c.type}`.toLowerCase()
-    return !search.trim() || haystack.includes(search.trim().toLowerCase())
-  }) ?? []
   const activeFilterCount = [search, status, type].filter(Boolean).length
 
   return (
@@ -139,13 +138,10 @@ export function StaffCorrectionsPage() {
       {data && data.items.length === 0 && (
         <EmptyState title="Queue clear" description="No correction requests match this filter." />
       )}
-      {data && data.items.length > 0 && filteredItems.length === 0 && (
-        <EmptyState title="No matches" description="Try a different search term or filter." />
-      )}
 
-      {data && filteredItems.length > 0 && (
+      {data && data.items.length > 0 && (
         <ul className="space-y-3">
-          {filteredItems.map((c) => (
+          {data.items.map((c) => (
             <Card key={c.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
@@ -184,7 +180,14 @@ export function StaffCorrectionsPage() {
         </ul>
       )}
 
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
     </div>
   )
 }

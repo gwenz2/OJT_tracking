@@ -15,6 +15,7 @@ import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, ErrorState, EmptyState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
 import { formatMinutes, formatDate } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
 
 const WEEKDAYS = [
   { v: 1, label: 'Mon' },
@@ -36,18 +37,22 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 
 export function AssignmentsPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [site, setSite] = useState('')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [editing, setEditing] = useState<Assignment | 'new' | null>(null)
   const toast = useToast()
+  const debouncedSearch = useDebounce(search.trim(), 300)
 
-  const params = new URLSearchParams({ page: String(page), page_size: '20' })
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (debouncedSearch) params.set('q', debouncedSearch)
   if (status) params.set('status', status)
+  if (site) params.set('site_id', site)
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: qk.staffAssignments({ page, status }),
+    queryKey: qk.staffAssignments({ page, pageSize, q: debouncedSearch, status, site }),
     queryFn: () => api.getPaged<Assignment>(`/staff/assignments?${params}`),
   })
 
@@ -56,12 +61,6 @@ export function AssignmentsPage() {
     queryFn: () => api.getPaged<Site>('/staff/sites?page=1&page_size=100&is_active=true'),
   })
 
-  const filteredItems = data?.items.filter((a) => {
-    const haystack = `${a.trainee_name} ${a.site_name}`.toLowerCase()
-    const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase())
-    const matchesSite = !site || a.site_id === site
-    return matchesSearch && matchesSite
-  }) ?? []
   const activeFilterCount = [search, status, site].filter(Boolean).length
 
   return (
@@ -111,10 +110,7 @@ export function AssignmentsPage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No assignments" description="Assign a trainee to a site with required hours." />
       )}
-      {data && data.items.length > 0 && filteredItems.length === 0 && (
-        <EmptyState title="No matches" description="Try a different search term or filter." />
-      )}
-      {data && filteredItems.length > 0 && (
+      {data && data.items.length > 0 && (
         <Card className="responsive-table-frame">
           <CardContent className="overflow-x-auto p-0">
             <table className="responsive-table w-full text-sm">
@@ -129,7 +125,7 @@ export function AssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((a) => (
+                {data.items.map((a) => (
                   <tr key={a.id} className="border-b border-[var(--color-border)] last:border-0">
                     <td data-label="Trainee" data-card-primary className="px-4 py-3 font-medium">{a.trainee_name}</td>
                     <td data-label="Site" className="px-4 py-3">{a.site_name}</td>
@@ -152,7 +148,14 @@ export function AssignmentsPage() {
           </CardContent>
         </Card>
       )}
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
 
       {editing && (
         <AssignmentModal

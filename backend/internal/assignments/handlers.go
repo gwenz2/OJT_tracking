@@ -35,7 +35,7 @@ func (h *Handler) checkScope(c fiber.Ctx, traineeID uuid.UUID) error {
 	return nil
 }
 
-// List: GET /staff/assignments?trainee_id=&site_id=&status=&page=&page_size=
+// List: GET /staff/assignments?trainee_id=&site_id=&status=&q=&page=&page_size=
 func (h *Handler) List(c fiber.Ctx) error {
 	page := httpx.ParsePage(c)
 	scope, err := h.scopeFor(c)
@@ -43,7 +43,7 @@ func (h *Handler) List(c fiber.Ctx) error {
 		return httpx.Fail(c, httpx.Internal(err))
 	}
 	items, total, err := List(c.Context(), h.pool, page, scope,
-		c.Query("trainee_id"), c.Query("site_id"), c.Query("status"))
+		c.Query("trainee_id"), c.Query("site_id"), c.Query("status"), c.Query("q"))
 	if err != nil {
 		return httpx.Fail(c, httpx.Internal(err))
 	}

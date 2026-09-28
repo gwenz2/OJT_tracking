@@ -204,12 +204,13 @@ func ActiveForTrainee(ctx context.Context, pool *db.Pool, traineeID uuid.UUID) (
 
 // List returns scope-filtered paginated assignments. scopeIDs nil = admin
 // (unfiltered); empty non-nil = coordinator with no scope (matches nothing).
-func List(ctx context.Context, pool *db.Pool, p httpx.Page, scopeIDs []uuid.UUID, traineeID, siteID, status string) ([]Assignment, int64, error) {
+func List(ctx context.Context, pool *db.Pool, p httpx.Page, scopeIDs []uuid.UUID, traineeID, siteID, status, q string) ([]Assignment, int64, error) {
 	where := `WHERE ($1::uuid[] IS NULL OR a.trainee_id = ANY($1))
 		AND ($2::uuid IS NULL OR a.trainee_id = $2)
 		AND ($3::uuid IS NULL OR a.site_id = $3)
-		AND ($4::text IS NULL OR a.status = $4)`
-	var scopeArg, traineeArg, siteArg, statusArg any
+		AND ($4::text IS NULL OR a.status = $4)
+		AND ($5::text IS NULL OR u.display_name ILIKE '%'||$5||'%' OR s.name ILIKE '%'||$5||'%')`
+	var scopeArg, traineeArg, siteArg, statusArg, qArg any
 	if scopeIDs != nil {
 		scopeArg = scopeIDs
 	}
@@ -222,17 +223,24 @@ func List(ctx context.Context, pool *db.Pool, p httpx.Page, scopeIDs []uuid.UUID
 	if validStatuses[status] {
 		statusArg = status
 	}
+	if q = strings.TrimSpace(q); q != "" {
+		qArg = q
+	}
 
 	var total int64
 	err := pool.QueryRow(ctx,
-		`SELECT count(*) FROM ojt_assignments a `+where, scopeArg, traineeArg, siteArg, statusArg).Scan(&total)
+		`SELECT count(*) FROM ojt_assignments a
+		 JOIN ojt_sites s ON s.id = a.site_id
+		 JOIN trainee_profiles tp ON tp.id = a.trainee_id
+		 JOIN users u ON u.id = tp.user_id `+where,
+		scopeArg, traineeArg, siteArg, statusArg, qArg).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := pool.Query(ctx, selectCols+where+`
-		ORDER BY a.created_at DESC LIMIT $5 OFFSET $6`,
-		scopeArg, traineeArg, siteArg, statusArg, p.Limit(), p.Offset())
+		ORDER BY a.created_at DESC LIMIT $6 OFFSET $7`,
+		scopeArg, traineeArg, siteArg, statusArg, qArg, p.Limit(), p.Offset())
 	if err != nil {
 		return nil, 0, err
 	}

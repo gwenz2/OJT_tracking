@@ -174,27 +174,35 @@ func ListMine(ctx context.Context, pool *db.Pool, traineeID uuid.UUID, p httpx.P
 }
 
 // ListStaff is the scope-filtered staff queue.
-func ListStaff(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status, cType, traineeID, from, to string, p httpx.Page) ([]Correction, int64, error) {
+func ListStaff(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status, cType, traineeID, from, to, q string, p httpx.Page) ([]Correction, int64, error) {
 	where := `WHERE ($1::uuid[] IS NULL OR c.trainee_id = ANY($1))
 		AND ($2::text IS NULL OR c.status = $2)
 		AND ($3::text IS NULL OR c.type = $3)
 		AND ($4::uuid IS NULL OR c.trainee_id = $4)
 		AND ($5::date IS NULL OR s.attendance_date >= $5)
-		AND ($6::date IS NULL OR s.attendance_date <= $6)`
+		AND ($6::date IS NULL OR s.attendance_date <= $6)
+		AND ($7::text IS NULL OR u.display_name ILIKE '%'||$7||'%'
+			OR si.name ILIKE '%'||$7||'%'
+			OR c.reason ILIKE '%'||$7||'%'
+			OR c.type ILIKE '%'||$7||'%')`
 	var scopeArg any
 	if scope != nil {
 		scopeArg = scope
 	}
-	args := []any{scopeArg, orNil(status), orNil(cType), orNilUUID(traineeID), orNil(from), orNil(to)}
+	args := []any{scopeArg, orNil(status), orNil(cType), orNilUUID(traineeID), orNil(from), orNil(to), orNil(strings.TrimSpace(q))}
 
 	var total int64
 	countQ := `SELECT count(*) FROM correction_requests c
-		JOIN attendance_sessions s ON s.id = c.attendance_id ` + where
+		JOIN attendance_sessions s ON s.id = c.attendance_id
+		JOIN trainee_profiles tp ON tp.id = c.trainee_id
+		JOIN users u ON u.id = tp.user_id
+		JOIN ojt_assignments a ON a.id = s.assignment_id
+		JOIN ojt_sites si ON si.id = a.site_id ` + where
 	if err := pool.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
-	q := `SELECT c.id, c.attendance_id, s.attendance_date::text, c.type, c.reason,
+	query := `SELECT c.id, c.attendance_id, s.attendance_date::text, c.type, c.reason,
 		c.proposed_time_in_at, c.proposed_time_out_at, c.status,
 		c.requested_at, c.decided_at, c.decision_comment,
 		c.trainee_id, u.display_name, si.name
@@ -205,8 +213,8 @@ func ListStaff(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status, cT
 	JOIN ojt_assignments a ON a.id = s.assignment_id
 	JOIN ojt_sites si ON si.id = a.site_id ` + where +
 		` ORDER BY CASE c.status WHEN 'pending' THEN 0 ELSE 1 END, c.requested_at DESC
-	 LIMIT $7 OFFSET $8`
-	rows, err := pool.Query(ctx, q, append(args, p.Limit(), p.Offset())...)
+	 LIMIT $8 OFFSET $9`
+	rows, err := pool.Query(ctx, query, append(args, p.Limit(), p.Offset())...)
 	if err != nil {
 		return nil, 0, err
 	}

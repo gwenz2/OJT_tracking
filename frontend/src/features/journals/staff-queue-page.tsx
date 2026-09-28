@@ -16,6 +16,7 @@ import { Select } from '@/components/ui/select'
 import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { formatDate, formatDateTime } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
 
 const statusBadge: Record<JournalStatus, { variant: 'default' | 'success' | 'warning' | 'danger'; label: string }> = {
   draft: { variant: 'default', label: 'Draft' },
@@ -28,19 +29,17 @@ export function StaffJournalQueuePage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const debouncedSearch = useDebounce(search.trim(), 300)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.staffJournalQueue({ status, page }),
-    queryFn: () => journalApi.queue(status, page),
+    queryKey: queryKeys.staffJournalQueue({ q: debouncedSearch, status, page, pageSize }),
+    queryFn: () => journalApi.queue({ q: debouncedSearch, status, page, pageSize }),
   })
 
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
-  const filteredItems = data?.items.filter((j) => {
-    const haystack = `${j.trainee_name} ${j.student_number} ${j.site_name} ${j.status}`.toLowerCase()
-    return !search.trim() || haystack.includes(search.trim().toLowerCase())
-  }) ?? []
   const activeFilterCount = [search, status].filter(Boolean).length
 
   return (
@@ -84,13 +83,9 @@ export function StaffJournalQueuePage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No journals" description="Nothing needs your attention right now." />
       )}
-      {data && data.items.length > 0 && filteredItems.length === 0 && (
-        <EmptyState title="No matches" description="Try a different search term or status." />
-      )}
-
-      {data && filteredItems.length > 0 && (
+      {data && data.items.length > 0 && (
         <ul className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
-          {filteredItems.map((j) => {
+          {data.items.map((j) => {
             const b = statusBadge[j.status]
             return (
               <li key={j.id}>
@@ -119,7 +114,14 @@ export function StaffJournalQueuePage() {
         </ul>
       )}
 
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
     </div>
   )
 }

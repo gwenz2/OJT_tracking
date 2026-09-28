@@ -166,10 +166,14 @@ func Load(ctx context.Context, pool *db.Pool, journalID uuid.UUID) (*Journal, uu
 }
 
 // ListQueue is the staff queue: journals needing attention, scope-filtered.
-func ListQueue(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status string, p httpx.Page) ([]QueueItem, int64, error) {
+func ListQueue(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status, q string, p httpx.Page) ([]QueueItem, int64, error) {
 	where := `WHERE ($1::uuid[] IS NULL OR j.trainee_id = ANY($1))
-		AND ($2::text IS NULL OR j.status = $2)`
-	var scopeArg any
+		AND ($2::text IS NULL OR j.status = $2)
+		AND ($3::text IS NULL OR u.display_name ILIKE '%'||$3||'%'
+			OR tp.student_number ILIKE '%'||$3||'%'
+			OR si.name ILIKE '%'||$3||'%'
+			OR j.status ILIKE '%'||$3||'%')`
+	var scopeArg, qArg any
 	if scope != nil {
 		scopeArg = scope
 	}
@@ -177,10 +181,19 @@ func ListQueue(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status str
 	if status != "" {
 		statusArg = status
 	}
+	if q = strings.TrimSpace(q); q != "" {
+		qArg = q
+	}
 
 	var total int64
 	if err := pool.QueryRow(ctx, `
-		SELECT count(*) FROM daily_journals j `+where, scopeArg, statusArg).Scan(&total); err != nil {
+		SELECT count(*) FROM daily_journals j
+		JOIN trainee_profiles tp ON tp.id = j.trainee_id
+		JOIN users u ON u.id = tp.user_id
+		JOIN attendance_sessions s ON s.id = j.attendance_id
+		JOIN ojt_assignments a ON a.id = s.assignment_id
+		JOIN ojt_sites si ON si.id = a.site_id
+		`+where, scopeArg, statusArg, qArg).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -196,7 +209,7 @@ func ListQueue(ctx context.Context, pool *db.Pool, scope []uuid.UUID, status str
 		`+where+`
 		ORDER BY CASE j.status WHEN 'submitted' THEN 0 WHEN 'needs_revision' THEN 1 ELSE 2 END,
 		         j.updated_at DESC
-		LIMIT $3 OFFSET $4`, scopeArg, statusArg, p.Limit(), p.Offset())
+		LIMIT $4 OFFSET $5`, scopeArg, statusArg, qArg, p.Limit(), p.Offset())
 	if err != nil {
 		return nil, 0, err
 	}

@@ -32,6 +32,7 @@ type TraineeForm = z.infer<typeof traineeSchema>
 
 export function TraineesPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState<Trainee | 'new' | null>(null)
@@ -51,12 +52,12 @@ export function TraineesPage() {
   }
 
   const debouncedQ = useDebounce(q, 300)
-  const params = new URLSearchParams({ page: String(page), page_size: '20' })
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (debouncedQ) params.set('q', debouncedQ)
   if (status) params.set('status', status)
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: qk.staffTrainees({ page, q: debouncedQ, status }),
+    queryKey: qk.staffTrainees({ page, pageSize, q: debouncedQ, status }),
     queryFn: () => api.getPaged<Trainee>(`/staff/trainees?${params}`),
   })
 
@@ -157,7 +158,14 @@ export function TraineesPage() {
           </CardContent>
         </Card>
       )}
-      {data && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
 
       {editing && (
         <TraineeModal

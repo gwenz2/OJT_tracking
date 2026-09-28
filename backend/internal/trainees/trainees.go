@@ -77,7 +77,20 @@ func validateCreate(in *CreateInput, fields map[string]string) {
 const traineeSelect = `
 	SELECT tp.id, tp.user_id, u.email, u.display_name, tp.student_number,
 	       COALESCE(tp.program,''), COALESCE(tp.year_level,''), COALESCE(tp.contact_number,''),
-	       u.account_status, s.name, a.id, tp.created_at
+	       u.account_status, s.name, a.id,
+	       CASE
+	         WHEN a.id IS NULL OR a.required_minutes <= 0 THEN NULL
+	         ELSE LEAST(
+	           COALESCE((
+	             SELECT sum(att.credited_minutes)::float
+	             FROM attendance_sessions att
+	             WHERE att.assignment_id = a.id
+	               AND att.status IN ('valid','flagged','corrected')
+	           ), 0) * 100 / a.required_minutes,
+	           100
+	         )
+	       END,
+	       tp.created_at
 	FROM trainee_profiles tp
 	JOIN users u ON u.id = tp.user_id
 	LEFT JOIN ojt_assignments a ON a.trainee_id = tp.id AND a.status = 'active'
@@ -87,7 +100,7 @@ func scanTrainee(row pgx.Row) (*Trainee, error) {
 	var t Trainee
 	err := row.Scan(&t.ID, &t.UserID, &t.Email, &t.DisplayName, &t.StudentNumber,
 		&t.Program, &t.YearLevel, &t.ContactNumber, &t.AccountStatus,
-		&t.SiteName, &t.AssignmentID, &t.CreatedAt)
+		&t.SiteName, &t.AssignmentID, &t.ProgressPercent, &t.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +114,7 @@ func scanTraineeRows(rows pgx.Rows) ([]Trainee, error) {
 		var t Trainee
 		if err := rows.Scan(&t.ID, &t.UserID, &t.Email, &t.DisplayName, &t.StudentNumber,
 			&t.Program, &t.YearLevel, &t.ContactNumber, &t.AccountStatus,
-			&t.SiteName, &t.AssignmentID, &t.CreatedAt); err != nil {
+			&t.SiteName, &t.AssignmentID, &t.ProgressPercent, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)

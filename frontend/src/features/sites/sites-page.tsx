@@ -31,16 +31,17 @@ type SiteForm = z.output<typeof siteSchema>
 
 export function SitesPage() {
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Site | 'new' | null>(null)
   const toast = useToast()
   const debouncedQ = useDebounce(q, 300)
 
-  const params = new URLSearchParams({ page: String(page), page_size: '20' })
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   if (debouncedQ) params.set('q', debouncedQ)
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: qk.staffSites({ page, q: debouncedQ }),
+    queryKey: qk.staffSites({ page, pageSize, q: debouncedQ }),
     queryFn: () => api.getPaged<Site>(`/staff/sites?${params}`),
     placeholderData: (previousData) => previousData,
   })
@@ -131,7 +132,14 @@ export function SitesPage() {
           </Card>
         </div>
       )}
-      {data && !error && <Pagination meta={data.meta} onPage={setPage} />}
+      {data && !error && (
+        <Pagination
+          meta={data.meta}
+          onPage={setPage}
+          pageSize={pageSize}
+          onPageSize={(next) => { setPageSize(next); setPage(1) }}
+        />
+      )}
 
       {editing && (
         <SiteModal

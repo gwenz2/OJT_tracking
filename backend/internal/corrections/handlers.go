@@ -72,7 +72,7 @@ func (h *Handler) Mine(c fiber.Ctx) error {
 	return httpx.OKMeta(c, items, httpx.NewPageMeta(page, total))
 }
 
-// List: GET /staff/corrections?status=&type=&trainee_id=&from=&to=
+// List: GET /staff/corrections?status=&type=&trainee_id=&from=&to=&q=
 func (h *Handler) List(c fiber.Ctx) error {
 	scope, err := auth.ScopedTraineeIDs(c.Context(), h.pool, auth.ActorOf(c))
 	if err != nil {
@@ -81,7 +81,7 @@ func (h *Handler) List(c fiber.Ctx) error {
 	page := httpx.ParsePage(c)
 	items, total, err := ListStaff(c.Context(), h.pool, scope,
 		c.Query("status"), c.Query("type"), c.Query("trainee_id"),
-		c.Query("from"), c.Query("to"), page)
+		c.Query("from"), c.Query("to"), c.Query("q"), page)
 	if err != nil {
 		return httpx.Fail(c, httpx.Internal(err))
 	}

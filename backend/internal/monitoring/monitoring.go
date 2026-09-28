@@ -256,7 +256,7 @@ type AttendanceRow struct {
 
 // AttendanceList is the paginated, scope-filtered staff monitoring table.
 func AttendanceList(ctx context.Context, pool *db.Pool, scope []uuid.UUID,
-	f struct{ From, To, Date, SiteID, TraineeID, Status string }, p httpx.Page) ([]AttendanceRow, int64, error) {
+	f struct{ Q, From, To, Date, SiteID, TraineeID, Status string }, p httpx.Page) ([]AttendanceRow, int64, error) {
 
 	where := `WHERE ($1::uuid[] IS NULL OR s.trainee_id = ANY($1))
 		AND ($2::date IS NULL OR s.attendance_date >= $2)
@@ -264,14 +264,22 @@ func AttendanceList(ctx context.Context, pool *db.Pool, scope []uuid.UUID,
 		AND ($4::date IS NULL OR s.attendance_date = $4)
 		AND ($5::uuid IS NULL OR a.site_id = $5)
 		AND ($6::uuid IS NULL OR s.trainee_id = $6)
-		AND ($7::text IS NULL OR s.status = $7)`
+		AND ($7::text IS NULL OR s.status = $7)
+		AND ($8::text IS NULL OR u.display_name ILIKE '%'||$8||'%'
+			OR tp.student_number ILIKE '%'||$8||'%'
+			OR si.name ILIKE '%'||$8||'%'
+			OR s.status ILIKE '%'||$8||'%'
+			OR EXISTS (SELECT 1 FROM unnest(s.flag_codes) flag WHERE flag ILIKE '%'||$8||'%'))`
 	args := []any{scopeArg(scope),
 		orNil(f.From), orNil(f.To), orNil(f.Date),
-		uuidOrNil(f.SiteID), uuidOrNil(f.TraineeID), orNil(f.Status)}
+		uuidOrNil(f.SiteID), uuidOrNil(f.TraineeID), orNil(f.Status), orNil(f.Q)}
 
 	var total int64
 	countQ := `SELECT count(*) FROM attendance_sessions s
-		JOIN ojt_assignments a ON a.id = s.assignment_id ` + where
+		JOIN trainee_profiles tp ON tp.id = s.trainee_id
+		JOIN users u ON u.id = tp.user_id
+		JOIN ojt_assignments a ON a.id = s.assignment_id
+		JOIN ojt_sites si ON si.id = a.site_id ` + where
 	if err := pool.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -288,7 +296,7 @@ func AttendanceList(ctx context.Context, pool *db.Pool, scope []uuid.UUID,
 		LEFT JOIN daily_journals j ON j.attendance_id = s.id
 		`+where+`
 		ORDER BY s.attendance_date DESC, u.display_name
-		LIMIT $8 OFFSET $9`, append(args, p.Limit(), p.Offset())...)
+		LIMIT $9 OFFSET $10`, append(args, p.Limit(), p.Offset())...)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -207,14 +207,14 @@ func (h *Handler) EvidenceImage(c fiber.Ctx) error {
 
 // ---- staff -------------------------------------------------------------------
 
-// Queue: GET /staff/journals?status=&page=
+// Queue: GET /staff/journals?status=&q=&page=
 func (h *Handler) Queue(c fiber.Ctx) error {
 	scope, err := auth.ScopedTraineeIDs(c.Context(), h.pool, auth.ActorOf(c))
 	if err != nil {
 		return httpx.Fail(c, httpx.Internal(err))
 	}
 	page := httpx.ParsePage(c)
-	items, total, err := ListQueue(c.Context(), h.pool, scope, c.Query("status"), page)
+	items, total, err := ListQueue(c.Context(), h.pool, scope, c.Query("status"), c.Query("q"), page)
 	if err != nil {
 		return httpx.Fail(c, httpx.Internal(err))
 	}

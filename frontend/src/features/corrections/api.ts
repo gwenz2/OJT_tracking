@@ -15,11 +15,13 @@ export const correctionsApi = {
 
   mine: (page: number) => api.getPaged<Correction>(`/trainee/corrections?page=${page}`),
 
-  staffList: (params: { status?: string; type?: string; page: number }) => {
+  staffList: (params: { q?: string; status?: string; type?: string; page: number; pageSize?: number }) => {
     const q = new URLSearchParams()
+    if (params.q) q.set('q', params.q)
     if (params.status) q.set('status', params.status)
     if (params.type) q.set('type', params.type)
     q.set('page', String(params.page))
+    if (params.pageSize) q.set('page_size', String(params.pageSize))
     return api.getPaged<Correction>(`/staff/corrections?${q}`)
   },
 
@@ -30,9 +32,11 @@ export const correctionsApi = {
 export const monitoringApi = {
   dashboard: () => api.get<StaffDashboard>('/staff/dashboard'),
 
-  attendance: (params: { q?: string; from?: string; to?: string; status?: string; page: number }) => {
+  attendance: (params: { q?: string; from?: string; to?: string; status?: string; page: number; pageSize?: number }) => {
     const q = new URLSearchParams()
-    for (const [k, v] of Object.entries(params)) if (v) q.set(k, String(v))
+    for (const [k, v] of Object.entries(params)) {
+      if (v) q.set(k === 'pageSize' ? 'page_size' : k, String(v))
+    }
     return api.getPaged<StaffAttendanceRow>(`/staff/attendance?${q}`)
   },
 }

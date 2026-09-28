@@ -197,6 +197,10 @@ body {
   }
 
   .responsive-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-bg-muted);
     height: 2.75rem;
     padding: 0.625rem 1rem;
     font-weight: 600;
