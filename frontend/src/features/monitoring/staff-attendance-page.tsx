@@ -24,10 +24,12 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 export function StaffAttendancePage() {
   const [params, setParams] = useSearchParams()
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState(params.get('q') ?? '')
   const [from, setFrom] = useState(params.get('from') ?? '')
   const [to, setTo] = useState(params.get('to') ?? '')
   const [status, setStatus] = useState(params.get('status') ?? '')
   const [applied, setApplied] = useState({
+    q: params.get('q') ?? '',
     from: params.get('from') ?? '',
     to: params.get('to') ?? '',
     status: params.get('status') ?? '',
@@ -54,12 +56,16 @@ export function StaffAttendancePage() {
 
   const applyFilters = () => {
     setPage(1)
-    setApplied({ from, to, status })
-    setParams(Object.fromEntries(Object.entries({ from, to, status }).filter(([, v]) => v)))
+    setApplied({ q: search, from, to, status })
+    setParams(Object.fromEntries(Object.entries({ q: search, from, to, status }).filter(([, v]) => v)))
     setFiltersOpen(false)
   }
 
-  const activeFilterCount = [applied.from, applied.to, applied.status].filter(Boolean).length
+  const filteredItems = data?.items.filter((r) => {
+    const haystack = `${r.trainee_name} ${r.student_number} ${r.site_name} ${r.status} ${r.journal_status ?? ''} ${r.flags.join(' ')}`.toLowerCase()
+    return !applied.q.trim() || haystack.includes(applied.q.trim().toLowerCase())
+  }) ?? []
+  const activeFilterCount = [applied.q, applied.from, applied.to, applied.status].filter(Boolean).length
 
   return (
     <div className="space-y-4">
@@ -68,6 +74,15 @@ export function StaffAttendancePage() {
         onToggle={() => setFiltersOpen((open) => !open)}
         summary={activeFilterCount ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'All records'}
       >
+        <div className="col-span-2 min-w-0 md:min-w-64">
+          <Label htmlFor="f-search">Search</Label>
+          <Input
+            id="f-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Trainee, student no., site, or flag"
+          />
+        </div>
         <div className="min-w-0">
           <Label htmlFor="f-from">From</Label>
           <Input id="f-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -102,8 +117,11 @@ export function StaffAttendancePage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No records" description="No attendance sessions match these filters." />
       )}
+      {data && data.items.length > 0 && filteredItems.length === 0 && (
+        <EmptyState title="No matches" description="Try a different search term or filter." />
+      )}
 
-      {data && data.items.length > 0 && (
+      {data && filteredItems.length > 0 && (
         <div className="responsive-table-frame overflow-x-auto rounded-lg border border-[var(--color-border)]">
           <table className="responsive-table w-full text-sm">
             <thead>
@@ -120,7 +138,7 @@ export function StaffAttendancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {data.items.map((r) => {
+              {filteredItems.map((r) => {
                 const expanded = expandedIds.has(r.id)
                 return (
                 <tr

@@ -10,9 +10,10 @@ import { Input, Label, FieldError } from '@/components/ui/input'
 import { useUIStore } from '@/stores/ui-store'
 import { ChevronRight, Eye, EyeOff, FileEdit, LogOut, Moon, Pencil, Sun, X } from 'lucide-react'
 import { useToast } from '@/components/feedback/toast'
+import type { User } from '@/api/types'
 
 export function ProfilePage() {
-  const { user, logout } = useSession()
+  const { user, logout, updateUser } = useSession()
   const navigate = useNavigate()
   const theme = useUIStore((s) => s.theme)
   const toggleTheme = useUIStore((s) => s.toggleTheme)
@@ -23,6 +24,9 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
+  const [profileEditing, setProfileEditing] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [email, setEmail] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -59,32 +63,114 @@ export function ProfilePage() {
     },
   })
 
+  const updateProfile = useMutation({
+    mutationFn: () => api.patch<{ user: User }>('/auth/me', {
+      display_name: displayName,
+      email,
+    }),
+    onSuccess: (res) => {
+      updateUser(res.user)
+      setErrors({})
+      setProfileEditing(false)
+      toast.success('Profile updated')
+    },
+    onError: (e) => {
+      if (e instanceof ApiError) {
+        setErrors(e.fields)
+        if (Object.keys(e.fields).length === 0) toast.error(e.message)
+      } else {
+        toast.error('Profile update failed')
+      }
+    },
+  })
+
   if (!user) return null
 
   const staff = user.role !== 'trainee'
+  const startProfileEdit = () => {
+    setDisplayName(user.display_name)
+    setEmail(user.email)
+    setErrors({})
+    setProfileEditing(true)
+  }
 
   return (
     <div className="mx-auto w-full max-w-md space-y-4 p-4 text-base">
       {!staff && <h1 className="text-xl font-semibold">Profile</h1>}
 
       <Card>
-        <CardContent className="flex items-center gap-4">
+        <CardContent className="flex items-start gap-4">
           <Avatar name={user.display_name} size={56} />
-          <div className="min-w-0 flex-1">
-            <p className="break-words font-medium">{user.display_name}</p>
-            <p className="break-all text-base text-[var(--color-text-muted)]">{user.email}</p>
-            <Badge className="mt-1 capitalize">{user.role}</Badge>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="shrink-0 px-3 text-base"
-            onClick={() => setPasswordSheetOpen(true)}
-            aria-label="Change password"
-          >
-            <Pencil size={17} aria-hidden="true" />
-            <span className="hidden sm:inline">Edit</span>
-          </Button>
+          {profileEditing ? (
+            <form
+              className="min-w-0 flex-1 space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault()
+                setErrors({})
+                updateProfile.mutate()
+              }}
+            >
+              <div>
+                <Label htmlFor="profile-name">Name</Label>
+                <Input
+                  id="profile-name"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  invalid={!!errors.display_name}
+                  className="text-base"
+                />
+                <FieldError>{errors.display_name}</FieldError>
+              </div>
+              <div>
+                <Label htmlFor="profile-email">Email</Label>
+                <Input
+                  id="profile-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  invalid={!!errors.email}
+                  className="text-base"
+                />
+                <FieldError>{errors.email}</FieldError>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button type="submit" loading={updateProfile.isPending} className="text-base">
+                  Save profile
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-base"
+                  onClick={() => {
+                    setProfileEditing(false)
+                    setErrors({})
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <div className="min-w-0 flex-1">
+                <p className="break-words font-medium">{user.display_name}</p>
+                <p className="break-all text-base text-[var(--color-text-muted)]">{user.email}</p>
+                <Badge className="mt-1 capitalize">{user.role}</Badge>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 text-base"
+                  onClick={startProfileEdit}
+                  aria-label="Edit profile"
+                >
+                  <Pencil size={17} aria-hidden="true" />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -114,6 +200,17 @@ export function ProfilePage() {
               Appearance
             </span>
             <span className="text-sm capitalize text-[var(--color-text-subtle)]">{theme}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPasswordSheetOpen(true)}
+            className="flex min-h-[48px] w-full items-center justify-between gap-3 border-t border-[var(--color-border)] px-4 py-3 text-base font-medium hover:bg-[var(--color-surface-hover)] focus-ring"
+          >
+            <span className="flex items-center gap-3">
+              <Pencil size={18} className="text-[var(--color-text-muted)]" aria-hidden="true" />
+              Password
+            </span>
+            <ChevronRight size={16} className="text-[var(--color-text-subtle)]" aria-hidden="true" />
           </button>
         </CardContent>
       </Card>

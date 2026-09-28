@@ -44,6 +44,7 @@ type CreateInput struct {
 }
 
 type PatchInput struct {
+	Email         *string `json:"email"`
 	DisplayName   *string `json:"display_name"`
 	StudentNumber *string `json:"student_number"`
 	Program       *string `json:"program"`
@@ -238,6 +239,13 @@ func Update(ctx context.Context, pool *db.Pool, id uuid.UUID, in PatchInput) (*T
 	if err != nil {
 		return nil, err
 	}
+	email := cur.Email
+	if in.Email != nil {
+		email = strings.ToLower(strings.TrimSpace(*in.Email))
+	}
+	if email == "" || !strings.Contains(email, "@") {
+		return nil, httpx.Validation(map[string]string{"email": "A valid email is required."})
+	}
 	name := cur.DisplayName
 	if in.DisplayName != nil {
 		name = strings.TrimSpace(*in.DisplayName)
@@ -272,8 +280,8 @@ func Update(ctx context.Context, pool *db.Pool, id uuid.UUID, in PatchInput) (*T
 
 	err = pool.InTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx,
-			`UPDATE users SET display_name = $2, account_status = $3, updated_at = now() WHERE id = $1`,
-			cur.UserID, name, status); err != nil {
+			`UPDATE users SET email = $2, display_name = $3, account_status = $4, updated_at = now() WHERE id = $1`,
+			cur.UserID, email, name, status); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -293,6 +301,9 @@ func Update(ctx context.Context, pool *db.Pool, id uuid.UUID, in PatchInput) (*T
 		return nil
 	})
 	if err != nil {
+		if db.IsUniqueViolation(err, "users_email_lower_key") {
+			return nil, httpx.Validation(map[string]string{"email": "A user with this email already exists."})
+		}
 		if db.IsUniqueViolation(err, "trainee_profiles_student_number_key") {
 			return nil, httpx.Validation(map[string]string{"student_number": "Student number already exists."})
 		}

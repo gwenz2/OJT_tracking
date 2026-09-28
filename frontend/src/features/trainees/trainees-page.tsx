@@ -250,8 +250,7 @@ function TraineeModal({
   const save = useMutation({
     mutationFn: async (f: TraineeForm) => {
       if (trainee) {
-        const { email: _omit, ...rest } = f // email is immutable post-create
-        return api.patch<Trainee>(`/staff/trainees/${trainee.id}`, { ...rest, account_status: accountStatus })
+        return api.patch<Trainee>(`/staff/trainees/${trainee.id}`, { ...f, account_status: accountStatus })
       }
       return api.post<{ trainee: Trainee; temporary_password: string }>('/staff/trainees', f)
     },
@@ -273,13 +272,11 @@ function TraineeModal({
   return (
     <Modal open onClose={onClose} title={trainee ? 'Edit trainee' : 'Add trainee'}>
       <form onSubmit={handleSubmit((f) => save.mutate(f))} className="space-y-3">
-        {!trainee && (
-          <div>
-            <Label htmlFor="t-email">Email</Label>
-            <Input id="t-email" type="email" invalid={!!errors.email} {...register('email')} />
-            <FieldError>{errors.email?.message}</FieldError>
-          </div>
-        )}
+        <div>
+          <Label htmlFor="t-email">Email</Label>
+          <Input id="t-email" type="email" invalid={!!errors.email} {...register('email')} />
+          <FieldError>{errors.email?.message}</FieldError>
+        </div>
         <div>
           <Label htmlFor="t-name">Full name</Label>
           <Input id="t-name" invalid={!!errors.display_name} {...register('display_name')} />

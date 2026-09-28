@@ -46,6 +46,11 @@ type changePasswordRequest struct {
 	NewPassword     string `json:"new_password"`
 }
 
+type updateProfileRequest struct {
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
 // Login: POST /api/v1/auth/login — public, rate-limited per IP.
 func (h *Handler) Login(c fiber.Ctx) error {
 	var req loginRequest
@@ -97,6 +102,20 @@ func (h *Handler) Me(c fiber.Ctx) error {
 	if u == nil {
 		return httpx.Fail(c, httpx.ErrUnauthorized)
 	}
+	return httpx.OK(c, fiber.Map{"user": toUserDTO(u)})
+}
+
+// UpdateMe: PATCH /api/v1/auth/me — current user profile identity fields.
+func (h *Handler) UpdateMe(c fiber.Ctx) error {
+	var req updateProfileRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return httpx.Fail(c, httpx.ValidationMsg("Malformed request body."))
+	}
+	u, err := h.svc.UpdateProfile(c.Context(), ActorOf(c), req.Email, req.DisplayName)
+	if err != nil {
+		return httpx.Fail(c, err)
+	}
+	audit.Record(c.Context(), h.pool, &u.ID, "auth.profile_updated", "user", &u.ID, httpx.RequestID(c), nil)
 	return httpx.OK(c, fiber.Map{"user": toUserDTO(u)})
 }
 
@@ -165,5 +184,6 @@ func RegisterRoutes(api fiber.Router, h *Handler, sm *SessionManager, cfg config
 	auth.Post("/logout", RequireAuth(sm), CSRFProtect(cfg.AllowedOrigins, sm), h.Logout)
 	auth.Post("/change-password", RequireAuth(sm), CSRFProtect(cfg.AllowedOrigins, sm), h.ChangePassword)
 	auth.Get("/me", RequireAuth(sm), h.Me)
+	auth.Patch("/me", RequireAuth(sm), CSRFProtect(cfg.AllowedOrigins, sm), h.UpdateMe)
 	auth.Get("/csrf", RequireAuth(sm), h.CSRFToken)
 }

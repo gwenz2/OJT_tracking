@@ -11,7 +11,9 @@ import { ApiError } from '@/api/client'
 import type { JournalStatus } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Pagination } from '@/components/ui/pagination'
+import { Input, Label } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { formatDate, formatDateTime } from '@/lib/utils'
 
@@ -23,8 +25,10 @@ const statusBadge: Record<JournalStatus, { variant: 'default' | 'success' | 'war
 }
 
 export function StaffJournalQueuePage() {
+  const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [page, setPage] = useState(1)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.staffJournalQueue({ status, page }),
@@ -33,27 +37,44 @@ export function StaffJournalQueuePage() {
 
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
+  const filteredItems = data?.items.filter((j) => {
+    const haystack = `${j.trainee_name} ${j.student_number} ${j.site_name} ${j.status}`.toLowerCase()
+    return !search.trim() || haystack.includes(search.trim().toLowerCase())
+  }) ?? []
+  const activeFilterCount = [search, status].filter(Boolean).length
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Submitted journals from trainees in your scope
-          </p>
+      <FilterDisclosure
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen((open) => !open)}
+        summary={activeFilterCount ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'All journals'}
+      >
+        <div className="col-span-2 min-w-0 md:min-w-64">
+          <Label htmlFor="j-search">Search</Label>
+          <Input
+            id="j-search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Trainee, student no., or site"
+          />
         </div>
-        <Select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-          aria-label="Filter by status"
-          className="w-44"
+        <div className="min-w-0">
+          <Label htmlFor="j-status">Status</Label>
+          <Select
+            id="j-status"
+            value={status}
+            onChange={(e) => { setStatus(e.target.value); setPage(1) }}
+            className="w-full md:w-44"
         >
-          <option value="">All statuses</option>
-          <option value="submitted">Submitted</option>
-          <option value="needs_revision">Needs revision</option>
-          <option value="reviewed">Reviewed</option>
-          <option value="draft">Draft</option>
-        </Select>
-      </div>
+            <option value="">All statuses</option>
+            <option value="submitted">Submitted</option>
+            <option value="needs_revision">Needs revision</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="draft">Draft</option>
+          </Select>
+        </div>
+      </FilterDisclosure>
 
       {isLoading && <LoadingState label="Loading journals…" />}
       {error && !(error instanceof ApiError && error.status === 403) && (
@@ -63,10 +84,13 @@ export function StaffJournalQueuePage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No journals" description="Nothing needs your attention right now." />
       )}
+      {data && data.items.length > 0 && filteredItems.length === 0 && (
+        <EmptyState title="No matches" description="Try a different search term or status." />
+      )}
 
-      {data && data.items.length > 0 && (
+      {data && filteredItems.length > 0 && (
         <ul className="divide-y divide-[var(--color-border)] rounded-lg border border-[var(--color-border)]">
-          {data.items.map((j) => {
+          {filteredItems.map((j) => {
             const b = statusBadge[j.status]
             return (
               <li key={j.id}>

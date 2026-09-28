@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Pagination } from '@/components/ui/pagination'
+import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, ErrorState, EmptyState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
 import { formatMinutes, formatDate } from '@/lib/utils'
@@ -35,7 +36,10 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 
 export function AssignmentsPage() {
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [site, setSite] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [editing, setEditing] = useState<Assignment | 'new' | null>(null)
   const toast = useToast()
 
@@ -47,16 +51,56 @@ export function AssignmentsPage() {
     queryFn: () => api.getPaged<Assignment>(`/staff/assignments?${params}`),
   })
 
+  const sites = useQuery({
+    queryKey: qk.staffSites({ all: true, active: true }),
+    queryFn: () => api.getPaged<Site>('/staff/sites?page=1&page_size=100&is_active=true'),
+  })
+
+  const filteredItems = data?.items.filter((a) => {
+    const haystack = `${a.trainee_name} ${a.site_name}`.toLowerCase()
+    const matchesSearch = !search.trim() || haystack.includes(search.trim().toLowerCase())
+    const matchesSite = !site || a.site_id === site
+    return matchesSearch && matchesSite
+  }) ?? []
+  const activeFilterCount = [search, status, site].filter(Boolean).length
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-full sm:w-52" aria-label="Filter by status">
-          <option value="">All statuses</option>
-          {['planned', 'active', 'completed', 'suspended', 'cancelled'].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </Select>
-        <Button className="sm:ml-auto" onClick={() => setEditing('new')}>New assignment</Button>
+      <div className="flex items-start gap-2 md:items-end">
+        <FilterDisclosure
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen((open) => !open)}
+          summary={activeFilterCount ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'All assignments'}
+        >
+          <div className="col-span-2 min-w-0 md:min-w-64">
+            <Label htmlFor="a-search">Search</Label>
+            <Input
+              id="a-search"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              placeholder="Trainee or site"
+            />
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor="a-status-filter">Status</Label>
+            <Select id="a-status-filter" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-full md:w-44">
+              <option value="">All statuses</option>
+              {['planned', 'active', 'completed', 'suspended', 'cancelled'].map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor="a-site-filter">Site</Label>
+            <Select id="a-site-filter" value={site} onChange={(e) => { setSite(e.target.value); setPage(1) }} className="w-full md:w-52">
+              <option value="">All sites</option>
+              {sites.data?.items.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </div>
+        </FilterDisclosure>
+        <Button className="shrink-0" onClick={() => setEditing('new')}>New assignment</Button>
       </div>
 
       {isLoading && <LoadingState />}
@@ -67,7 +111,10 @@ export function AssignmentsPage() {
       {data && data.items.length === 0 && (
         <EmptyState title="No assignments" description="Assign a trainee to a site with required hours." />
       )}
-      {data && data.items.length > 0 && (
+      {data && data.items.length > 0 && filteredItems.length === 0 && (
+        <EmptyState title="No matches" description="Try a different search term or filter." />
+      )}
+      {data && filteredItems.length > 0 && (
         <Card className="responsive-table-frame">
           <CardContent className="overflow-x-auto p-0">
             <table className="responsive-table w-full text-sm">
@@ -82,7 +129,7 @@ export function AssignmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.items.map((a) => (
+                {filteredItems.map((a) => (
                   <tr key={a.id} className="border-b border-[var(--color-border)] last:border-0">
                     <td data-label="Trainee" data-card-primary className="px-4 py-3 font-medium">{a.trainee_name}</td>
                     <td data-label="Site" className="px-4 py-3">{a.site_name}</td>

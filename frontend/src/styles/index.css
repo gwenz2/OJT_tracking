@@ -173,6 +173,60 @@ body {
   }
 }
 
+/* Staff data tables: one compact, predictable treatment across pages. */
+@media (min-width: 768px) {
+  .responsive-table-frame {
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .responsive-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .responsive-table thead tr {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    text-align: left;
+  }
+
+  .responsive-table th {
+    height: 2.75rem;
+    padding: 0.625rem 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .responsive-table tbody tr {
+    background: var(--color-surface);
+  }
+
+  .responsive-table tbody tr:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .responsive-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+  }
+
+  .responsive-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .responsive-table td[data-card-actions] {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
 /* Staff data tables become scan-friendly record cards on narrow screens. */
 @media (max-width: 767px) {
   .responsive-table-frame {
@@ -190,7 +244,7 @@ body {
     display: block;
     overflow: hidden;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     background: var(--color-surface);
     box-shadow: var(--shadow-sm);
   }

@@ -51,3 +51,5 @@ frontend/playwright-report/
 .specify/
 docs/
 specs/
+
+.tmp/

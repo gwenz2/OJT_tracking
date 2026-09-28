@@ -38,13 +38,14 @@ export function ReportsPage() {
   const toast = useToast()
   const [params] = useSearchParams()
   const [report, setReport] = useState(params.get('report') ?? 'daily-attendance')
+  const [search, setSearch] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [applied, setApplied] = useState({ from: '', to: '' })
+  const [applied, setApplied] = useState({ q: '', from: '', to: '' })
   const [exporting, setExporting] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
-  const filters = { ...applied }
+  const filters = { from: applied.from, to: applied.to }
   const { data, isLoading, error } = useQuery({
     queryKey: qk.staffReport(report, filters),
     queryFn: () => reportsApi.run(report, filters),
@@ -70,7 +71,11 @@ export function ReportsPage() {
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
   const selectedReport = REPORTS.find((item) => item.value === report)?.label ?? 'Report'
-  const activeDateCount = [applied.from, applied.to].filter(Boolean).length
+  const visibleRows = data?.rows.filter((row) => {
+    const haystack = Object.values(row).map(cellText).join(' ').toLowerCase()
+    return !applied.q.trim() || haystack.includes(applied.q.trim().toLowerCase())
+  }) ?? []
+  const activeDateCount = [applied.q, applied.from, applied.to].filter(Boolean).length
 
   return (
     <div className="space-y-4">
@@ -86,6 +91,15 @@ export function ReportsPage() {
             {REPORTS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </Select>
         </div>
+        <div className="col-span-2 min-w-0 md:min-w-60">
+          <Label htmlFor="r-search">Search</Label>
+          <Input
+            id="r-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search report rows"
+          />
+        </div>
         <div className="min-w-0">
           <Label htmlFor="r-from">From</Label>
           <Input id="r-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -97,7 +111,7 @@ export function ReportsPage() {
         <Button
           variant="outline"
           onClick={() => {
-            setApplied({ from, to })
+            setApplied({ q: search, from, to })
             setFiltersOpen(false)
           }}
         >
@@ -116,8 +130,11 @@ export function ReportsPage() {
       {data && data.rows.length === 0 && (
         <EmptyState title="No data" description="No rows match the selected filters." />
       )}
+      {data && data.rows.length > 0 && visibleRows.length === 0 && (
+        <EmptyState title="No matches" description="Try a different search term or date range." />
+      )}
 
-      {data && data.rows.length > 0 && (
+      {data && visibleRows.length > 0 && (
         <div className="responsive-table-frame overflow-x-auto rounded-lg border border-[var(--color-border)]">
           <table className="responsive-table w-full text-sm">
             <thead>
@@ -128,7 +145,7 @@ export function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--color-border)]">
-              {data.rows.map((row, i) => (
+              {visibleRows.map((row, i) => (
                 <tr key={i} className="hover:bg-[var(--color-surface-hover)]">
                   {data.columns.map((c) => (
                     <td key={c.key} data-label={c.label} className="px-3 py-2 whitespace-nowrap">{cellText(row[c.key])}</td>

@@ -46,7 +46,7 @@ export function SettingsPage() {
   const num = (v: string) => (v === '' ? undefined : Number(v))
 
   return (
-    <div className="mx-auto max-w-xl space-y-4">
+    <div className="mx-auto max-w-5xl space-y-4">
       {f.retention_days == null && (
         <Card className="border-[var(--color-warning)]/50">
           <CardContent className="pt-4 text-sm text-[var(--color-warning)]">
@@ -56,13 +56,14 @@ export function SettingsPage() {
         </Card>
       )}
 
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Attendance policy</CardTitle>
           <CardDescription>Applied server-side to all time calculations.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
             <Label htmlFor="s-tz">Timezone (IANA)</Label>
             <Input id="s-tz" value={f.timezone ?? ''} onChange={(e) => set('timezone', e.target.value)} />
           </div>
@@ -97,11 +98,11 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="text-base">Evidence retention</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="max-w-xl space-y-3">
           <div>
             <Label htmlFor="s-ret">Retention days (empty = unset)</Label>
             <Input id="s-ret" type="number" min={1} value={f.retention_days ?? ''}
@@ -110,6 +111,8 @@ export function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      </div>
 
       <div className="flex justify-end">
         <Button loading={save.isPending} onClick={() => save.mutate(f)}>Save settings</Button>

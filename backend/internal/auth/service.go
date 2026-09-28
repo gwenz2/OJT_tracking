@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -81,6 +82,42 @@ func (s *Service) Login(ctx context.Context, email, password, userAgent, ip stri
 		CSRFToken: csrf,
 		ExpiresAt: time.Now().UTC().Add(s.cfg.SessionTTL),
 	}, nil
+}
+
+// UpdateProfile changes the caller's account identity fields. The email is
+// normalized to lowercase because login matching is case-insensitive.
+func (s *Service) UpdateProfile(ctx context.Context, u *User, email, displayName string) (*User, error) {
+	if u == nil {
+		return nil, httpx.ErrUnauthorized
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	displayName = strings.TrimSpace(displayName)
+	fields := map[string]string{}
+	if email == "" || !strings.Contains(email, "@") {
+		fields["email"] = "A valid email is required."
+	}
+	if displayName == "" {
+		fields["display_name"] = "Display name is required."
+	}
+	if len(fields) > 0 {
+		return nil, httpx.Validation(fields)
+	}
+
+	var updated User
+	err := s.pool.QueryRow(ctx, `
+		UPDATE users
+		SET email = $2, display_name = $3, updated_at = now()
+		WHERE id = $1
+		RETURNING id, email, role, account_status, display_name`,
+		u.ID, email, displayName).
+		Scan(&updated.ID, &updated.Email, &updated.Role, &updated.Status, &updated.DisplayName)
+	if err != nil {
+		if db.IsUniqueViolation(err, "users_email_lower_key") {
+			return nil, httpx.Validation(map[string]string{"email": "A user with this email already exists."})
+		}
+		return nil, httpx.Internal(err)
+	}
+	return &updated, nil
 }
 
 // Logout revokes the presented session token. Idempotent.

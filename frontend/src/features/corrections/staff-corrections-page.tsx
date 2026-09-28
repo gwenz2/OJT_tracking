@@ -11,9 +11,10 @@ import type { Correction } from '@/api/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea, Label } from '@/components/ui/input'
+import { Input, Textarea, Label } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Pagination } from '@/components/ui/pagination'
+import { FilterDisclosure } from '@/components/ui/filter-disclosure'
 import { LoadingState, EmptyState, ErrorState, AccessDenied } from '@/components/feedback/states'
 import { useToast } from '@/components/feedback/toast'
 import { formatDate, formatDateTime } from '@/lib/utils'
@@ -75,33 +76,61 @@ function DecisionPanel({ c, onDone }: { c: Correction; onDone: () => void }) {
 }
 
 export function StaffCorrectionsPage() {
+  const [search, setSearch] = useState('')
   const [status, setStatus] = useState('pending')
+  const [type, setType] = useState('')
   const [page, setPage] = useState(1)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const { data, isLoading, error } = useQuery({
-    queryKey: qk.staffCorrections({ status, page }),
-    queryFn: () => correctionsApi.staffList({ status, page }),
+    queryKey: qk.staffCorrections({ status, type, page }),
+    queryFn: () => correctionsApi.staffList({ status, type, page }),
   })
 
   if (error instanceof ApiError && error.status === 403) return <AccessDenied />
 
+  const filteredItems = data?.items.filter((c) => {
+    const haystack = `${c.trainee_name} ${c.site_name} ${c.reason} ${typeLabel[c.type] ?? c.type}`.toLowerCase()
+    return !search.trim() || haystack.includes(search.trim().toLowerCase())
+  }) ?? []
+  const activeFilterCount = [search, status, type].filter(Boolean).length
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-[var(--color-text-muted)]">
-            Review trainee-proposed attendance corrections
-          </p>
+      <FilterDisclosure
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen((open) => !open)}
+        summary={activeFilterCount ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'All requests'}
+      >
+        <div className="col-span-2 min-w-0 md:min-w-64">
+          <Label htmlFor="c-search">Search</Label>
+          <Input
+            id="c-search"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Trainee, site, reason, or type"
+          />
         </div>
-        <Select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }}
-          aria-label="Filter by status" className="w-40">
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="">All</option>
-        </Select>
-      </div>
+        <div className="min-w-0">
+          <Label htmlFor="c-status">Status</Label>
+          <Select id="c-status" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1) }} className="w-full md:w-40">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="">All</option>
+          </Select>
+        </div>
+        <div className="col-span-2 min-w-0 md:col-span-1">
+          <Label htmlFor="c-type">Type</Label>
+          <Select id="c-type" value={type} onChange={(e) => { setType(e.target.value); setPage(1) }} className="w-full md:w-52">
+            <option value="">All types</option>
+            {Object.entries(typeLabel).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </Select>
+        </div>
+      </FilterDisclosure>
 
       {isLoading && <LoadingState label="Loading requests…" />}
       {error && !(error instanceof ApiError && error.status === 403) && (
@@ -110,10 +139,13 @@ export function StaffCorrectionsPage() {
       {data && data.items.length === 0 && (
         <EmptyState title="Queue clear" description="No correction requests match this filter." />
       )}
+      {data && data.items.length > 0 && filteredItems.length === 0 && (
+        <EmptyState title="No matches" description="Try a different search term or filter." />
+      )}
 
-      {data && data.items.length > 0 && (
+      {data && filteredItems.length > 0 && (
         <ul className="space-y-3">
-          {data.items.map((c) => (
+          {filteredItems.map((c) => (
             <Card key={c.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">

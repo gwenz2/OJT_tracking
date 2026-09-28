@@ -9,6 +9,7 @@ interface SessionState {
   isLoading: boolean
   login: (email: string, password: string) => Promise<User>
   logout: () => Promise<void>
+  updateUser: (user: User) => void
 }
 
 const SessionContext = createContext<SessionState | null>(null)
@@ -62,7 +63,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  return <SessionContext.Provider value={{ user, isLoading, login, logout }}>{children}</SessionContext.Provider>
+  const updateUser = useCallback((nextUser: User) => {
+    setUser(nextUser)
+  }, [])
+
+  return <SessionContext.Provider value={{ user, isLoading, login, logout, updateUser }}>{children}</SessionContext.Provider>
 }
 
 export function useSession(): SessionState {

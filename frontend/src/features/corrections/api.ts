@@ -30,7 +30,7 @@ export const correctionsApi = {
 export const monitoringApi = {
   dashboard: () => api.get<StaffDashboard>('/staff/dashboard'),
 
-  attendance: (params: { from?: string; to?: string; status?: string; page: number }) => {
+  attendance: (params: { q?: string; from?: string; to?: string; status?: string; page: number }) => {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) if (v) q.set(k, String(v))
     return api.getPaged<StaffAttendanceRow>(`/staff/attendance?${q}`)
