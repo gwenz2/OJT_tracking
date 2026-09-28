@@ -201,6 +201,10 @@ function AssignmentModal({
     queryKey: qk.staffSites({ all: true }),
     queryFn: () => api.getPaged<Site>('/staff/sites?page=1&page_size=100&is_active=true'),
   })
+  const availableTrainees = useMemo(
+    () => (trainees.data?.items ?? []).filter((trainee) => !trainee.assignment_id),
+    [trainees.data?.items],
+  )
 
   const save = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
@@ -272,8 +276,8 @@ function AssignmentModal({
               onChange={setTraineeIds}
               invalid={!!fe('trainee_id')}
               placeholder="Search trainees"
-              emptyLabel={trainees.isLoading ? 'Loading trainees...' : 'No trainee found'}
-              options={(trainees.data?.items ?? []).map((t) => ({
+              emptyLabel={trainees.isLoading ? 'Loading trainees...' : 'No available trainee found'}
+              options={availableTrainees.map((t) => ({
                 value: t.id,
                 label: t.display_name,
                 description: t.student_number,
@@ -283,7 +287,7 @@ function AssignmentModal({
             <Label htmlFor="a-trainee">Trainee</Label>
             <Select id="a-trainee" tabIndex={-1}>
               <option value="">Select trainee…</option>
-              {trainees.data?.items.map((t) => (
+              {availableTrainees.map((t) => (
                 <option key={t.id} value={t.id}>{t.display_name} ({t.student_number})</option>
             ))}
             </Select>

@@ -61,6 +61,35 @@ func TestStaffDashboardScopeIsolation(t *testing.T) {
 	}
 }
 
+func TestStaffDashboardRecentFlagsOnlyIncludesOpenFlags(t *testing.T) {
+	a, pool, _ := testutil.AppWithStore(t)
+	_, _, traineeID := seedTrainee(t, a, pool, "m-flags@x.edu")
+
+	var assignmentID string
+	if err := pool.QueryRow(testutil.Ctx(t),
+		`SELECT id FROM ojt_assignments WHERE trainee_id = $1`, traineeID).Scan(&assignmentID); err != nil {
+		t.Fatalf("assignment: %v", err)
+	}
+	if _, err := pool.Exec(testutil.Ctx(t), `
+		INSERT INTO attendance_sessions
+		    (trainee_id, assignment_id, attendance_date,
+		     original_time_in_at, effective_time_in_at, status, flag_codes)
+		VALUES ($1,$2,CURRENT_DATE,now(),now(),'corrected',ARRAY['outside_radius']::text[])`,
+		traineeID, assignmentID); err != nil {
+		t.Fatalf("insert corrected flagged session: %v", err)
+	}
+
+	admin, adminCSRF := testutil.LoginAs(t, a, pool, "m-flags-admin@x.edu", "pass-12345", "admin", "Admin")
+	s, b := doJSON(t, a, "GET", "/api/v1/staff/dashboard", nil, admin, adminCSRF)
+	if s != 200 {
+		t.Fatalf("dashboard: %d %v", s, b)
+	}
+	q := b["data"].(map[string]any)["queues"].(map[string]any)
+	if got := len(q["recent_flags"].([]any)); got != 0 {
+		t.Fatalf("corrected attendance must not stay in recent_flags, got %d: %v", got, q["recent_flags"])
+	}
+}
+
 func TestStaffAttendanceListFiltersAndScope(t *testing.T) {
 	a, pool, _ := testutil.AppWithStore(t)
 	cookie, csrf, traineeID := seedTrainee(t, a, pool, "m3@x.edu")

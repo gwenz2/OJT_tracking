@@ -197,7 +197,9 @@ func recentFlags(ctx context.Context, pool *db.Pool, scope any) ([]FlagQueueItem
 		FROM attendance_sessions s
 		JOIN trainee_profiles tp ON tp.id = s.trainee_id
 		JOIN users u ON u.id = tp.user_id
-		WHERE cardinality(s.flag_codes) > 0 AND ($1::uuid[] IS NULL OR s.trainee_id = ANY($1))
+		WHERE s.status = 'flagged'
+		  AND cardinality(s.flag_codes) > 0
+		  AND ($1::uuid[] IS NULL OR s.trainee_id = ANY($1))
 		ORDER BY s.attendance_date DESC LIMIT 10`, scope)
 	if err != nil {
 		return nil, err
